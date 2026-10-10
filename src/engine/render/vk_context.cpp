@@ -666,15 +666,26 @@ bool Context::CreateSwapchain(uint32_t width, uint32_t height, bool vsync, bool 
         return false;
     }
 #ifdef __ANDROID__
-    /* a smaller swapchain than the window: Android's compositor scales it to the screen for free, and the whole renderer runs
-       at the smaller size (main.cpp scales the render extent the same way, so the two match) */
+    /* A rotated display (the AYN Thor's top screen is a portrait panel run in landscape): Android reports the rotation in
+       currentTransform. Handing that back as preTransform promises frames already rotated, which these are not, and the
+       picture came out turned 90 degrees. IDENTITY lets the compositor rotate them. The size is the window's own (landscape)
+       one from SDL, as currentExtent is given in the panel's native orientation then. A smaller swapchain than the window
+       is scaled to the screen by the compositor for free (render_scale.txt; main.cpp leaves the render size to it). */
     {
+        LogInfo("vulkan: surface transform {:#x} (supported {:#x}), extent {}x{}, window {}x{}", static_cast<uint32_t>(caps.currentTransform),
+                static_cast<uint32_t>(caps.supportedTransforms), caps.currentExtent.width, caps.currentExtent.height, width, height);
+        VkExtent2D logical = extent;
+        if (width > 0 && height > 0) {
+            logical = {width, height};
+        } else if (caps.currentTransform & (VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR | VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR)) {
+            logical = {extent.height, extent.width};
+        }
         static const float scale = android::RenderScale();
-        const VkExtent2D scaled{std::max(2u, static_cast<uint32_t>(extent.width * scale) & ~1u),
-                                std::max(2u, static_cast<uint32_t>(extent.height * scale) & ~1u)};
+        const VkExtent2D scaled{std::max(2u, static_cast<uint32_t>(logical.width * scale) & ~1u),
+                                std::max(2u, static_cast<uint32_t>(logical.height * scale) & ~1u)};
         extent.width = std::clamp(scaled.width, caps.minImageExtent.width, caps.maxImageExtent.width);
         extent.height = std::clamp(scaled.height, caps.minImageExtent.height, caps.maxImageExtent.height);
-        LogInfo("vulkan: swapchain {}x{} for a {}x{} window", extent.width, extent.height, caps.currentExtent.width, caps.currentExtent.height);
+        LogInfo("vulkan: swapchain {}x{} for a {}x{} window", extent.width, extent.height, logical.width, logical.height);
     }
 #endif
     uint32_t image_count = caps.minImageCount + 1;
@@ -691,7 +702,12 @@ bool Context::CreateSwapchain(uint32_t width, uint32_t height, bool vsync, bool 
     info.imageArrayLayers = 1;
     info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+#ifdef __ANDROID__
+    info.preTransform = (caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+                                                                                           : caps.currentTransform;
+#else
     info.preTransform = caps.currentTransform;
+#endif
     info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     info.presentMode = present_mode;
     info.clipped = VK_TRUE;
