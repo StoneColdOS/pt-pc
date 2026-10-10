@@ -21,9 +21,11 @@ cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DANDROID_PLATFORM=android-29 \
   -DANDROID_STL=c++_static \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_SCAN_FOR_MODULES=OFF \
   -DVulkan_GLSLC_EXECUTABLE="$GLSLC" \
   -DPT_UPSCALERS=OFF -DPT_OPENXR=OFF
-cmake --build "$BUILD" --target pt pt_shaders
+# -k 0: every compile error of a run, not just the first
+cmake --build "$BUILD" --target pt pt_shaders -- -k 0
 
 LIBS="$APP/libs/arm64-v8a"
 rm -rf "$LIBS" "$APP/assets"
