@@ -53,3 +53,11 @@ scratch/*
 # .NET build output of the installer helper and its tests (tools/ci/release.py publishes the helper itself)
 installer/*/bin/
 installer/*/obj/
+
+# Android build outputs (tools/android/build_native.sh, Gradle)
+/android/app/libs/
+/android/app/assets/
+/android/app/build/
+/android/build/
+/android/.gradle/
+/android/local.properties

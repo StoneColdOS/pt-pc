@@ -1,5 +1,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#ifdef __ANDROID__
+#include "engine/platform/android.h"
+#endif
 #include "engine/platform/update_check.h"
 
 #ifdef _WIN32
@@ -5036,6 +5039,11 @@ int main(int argc, char** argv) {
         freopen_s(&stream, "CONOUT$", "w", stderr);
     }
 #endif
+#ifdef __ANDROID__
+    // landscape only, and the shaders and fonts out of the APK into the data folder before anything looks for them
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    pt::android::UnpackBundledAssets();
+#endif
     App app;
     app.options = ParseOptions(argc, argv);
     if (!app.options.make_loop_previews.empty()) {
@@ -5177,6 +5185,10 @@ int main(int argc, char** argv) {
             const std::string text = "The P.T. game files were not found in\n" + pt::os::PathToUtf8(std::filesystem::absolute(game_dir)) +
                                      "\n\nStart P.T. again and pick your extracted CUSA01127 folder (it contains chunk1.psarc and "
                                      "texture.qar), put that folder next to pt.exe, or start pt.exe with --game <folder>.";
+#elif defined(__ANDROID__)
+            const std::string text = "The P.T. game files were not found.\n\nCopy chunk1.psarc, texture.qar and pathid_list_ps4.bin from your "
+                                     "CUSA01127 dump into\n" + pt::os::PathToUtf8(pt::ExecutableDir() / "game" / "CUSA01127") +
+                                     "\n(Android/data/com.ptport.app/files/game/CUSA01127 over USB), then start P.T. again.";
 #else
             const std::string text = "The P.T. game files were not found in\n" + pt::os::PathToUtf8(std::filesystem::absolute(game_dir)) +
                                      "\n\nStart P.T. again and pick your extracted CUSA01127 folder (it contains chunk1.psarc and "

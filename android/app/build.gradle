@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The native libraries (libmain.so, libSDL3.so, libadrenotools' hooks, the Turnip driver) are built by CMake beforehand
+// (tools/android/build_native.sh) into app/libs/arm64-v8a, and the shaders and fonts into app/assets; Gradle only packages.
+android {
+    namespace = "com.ptport.app"
+    compileSdkVersion 35
+    defaultConfig {
+        applicationId "com.ptport.app"
+        minSdkVersion 29
+        targetSdkVersion 35
+        versionCode((project.findProperty('ptVersionCode') ?: '1') as int)
+        versionName project.findProperty('ptVersionName') ?: 'dev'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            // signed with the debug key so the APK installs without a keystore of its own
+            signingConfig signingConfigs.debug
+        }
+    }
+    sourceSets.main {
+        jniLibs.srcDirs = ['libs']
+        assets.srcDirs = ['assets']
+    }
+    packagingOptions {
+        jniLibs {
+            // libadrenotools loads its hooks and the driver from nativeLibraryDir, so the libraries must be unpacked on install
+            useLegacyPackaging = true
+        }
+    }
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+}

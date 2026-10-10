@@ -2,6 +2,10 @@
 
 #include <SDL3/SDL.h>
 
+#ifdef __ANDROID__
+#include "engine/platform/android.h"
+#endif
+
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 
@@ -11,6 +15,11 @@
 namespace pt {
 
 std::filesystem::path ExecutableDir() {
+#ifdef __ANDROID__
+    /* no folder of the executable's own on Android: the app's data folder, where the bundled shaders and fonts are unpacked
+       and the game files go (src/engine/platform/android.h) */
+    return android::DataDir();
+#endif
     const char* base = SDL_GetBasePath();
     return base ? std::filesystem::path(reinterpret_cast<const char8_t*>(base)) : std::filesystem::current_path();
 }

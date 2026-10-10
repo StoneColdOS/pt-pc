@@ -6,6 +6,10 @@
 #include <cstdlib>
 #include <mutex>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 namespace pt {
 namespace {
 
@@ -46,7 +50,14 @@ void LogWrite(LogLevel level, std::string_view text) {
     if (g_log_ticks) {
         std::snprintf(tick, sizeof(tick), "#%llu ", static_cast<unsigned long long>(g_tick));
     }
+#ifdef __ANDROID__
+    // stderr goes nowhere on Android: logcat (adb logcat -s pt) instead
+    const int priority = level == LogLevel::Error ? ANDROID_LOG_ERROR : level == LogLevel::Warn ? ANDROID_LOG_WARN
+                       : level == LogLevel::Debug ? ANDROID_LOG_DEBUG : ANDROID_LOG_INFO;
+    __android_log_print(priority, "pt", "%s%.*s", tick, static_cast<int>(text.size()), text.data());
+#else
     std::fprintf(stderr, "[%9.3f] %-5s %s%.*s\n", seconds, LevelTag(level), tick, static_cast<int>(text.size()), text.data());
+#endif
     if (g_log_file) {
         std::fprintf(g_log_file, "[%9.3f] %-5s %s%.*s\n", seconds, LevelTag(level), tick, static_cast<int>(text.size()), text.data());
         std::fflush(g_log_file);

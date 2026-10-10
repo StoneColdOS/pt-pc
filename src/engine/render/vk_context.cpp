@@ -18,6 +18,12 @@
 #include "engine/core/resource_path.h"
 #endif
 
+#ifdef __ANDROID__
+#include <android/native_window.h>
+
+#include "engine/platform/android.h"
+#endif
+
 #include "engine/core/crash_report.h"
 #include "engine/core/log.h"
 #include "engine/render/hdr_output.h"
@@ -160,6 +166,14 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
         if (loader) LogInfo("vulkan: {}", VulkanLibraryPath());
     }
 #endif
+#ifdef __ANDROID__
+    /* the bundled Mesa Turnip driver through libadrenotools, unless driver.txt asks for the system's (docs/android.md) */
+    if (!loader) {
+        std::string driver;
+        loader = android::LoadVulkanDriver(driver);
+        LogInfo("vulkan: driver: {}", driver);
+    }
+#endif
     if (loader) {
         // Streamline's interposer (upscale/streamline.h): its proxies create the instance, the device and the swapchain
         /* With Streamline loaded, instance, device and swapchain must come from its proxies, so volk takes the interposer's loader instead of vulkan-1.dll. */
@@ -250,6 +264,23 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
             }
         }
 #endif
+#ifdef __ANDROID__
+        /* SDL would make the surface through the system's libvulkan.so, not the driver this instance comes from (Turnip) */
+        if (!created) {
+            auto* native = static_cast<ANativeWindow*>(
+                SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr));
+            VkAndroidSurfaceCreateInfoKHR info{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
+            info.window = native;
+            if (!native || !vkCreateAndroidSurfaceKHR) {
+                LogError("vulkan: no Android window ({}) or no vkCreateAndroidSurfaceKHR", native ? "found" : "missing");
+                return false;
+            }
+            if (!Check(vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface), "vkCreateAndroidSurfaceKHR")) {
+                return false;
+            }
+            created = true;
+        }
+#endif
         if (!created && !SDL_Vulkan_CreateSurface(window, instance, nullptr, &surface)) {
             LogError("SDL_Vulkan_CreateSurface: {}", SDL_GetError());
             return false;
@@ -299,7 +330,7 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
     }
     LogInfo("vulkan: using {} (driver {:X})", properties.deviceName, properties.driverVersion);
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__ANDROID__)
     {
         /* MoltenVK on an older GPU (an Intel Mac's) can lack what the renderer needs, above all the bindless image array (Metal
            argument buffers tier 2): say which feature, not just that the device could not be created (docs/macos.md) */

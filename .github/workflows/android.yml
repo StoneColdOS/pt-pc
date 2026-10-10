@@ -1,0 +1,64 @@
+# The Android APK (docs/android.md): arm64, for Snapdragon (Adreno) handhelds and phones. Every push to android-port builds
+# it; the APK is attached to the rolling "android-latest" pre-release, so it can be downloaded straight onto the device.
+name: Android
+
+on:
+  push:
+    branches: [android-port]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build glslc
+          cmake --version
+          glslc --version
+          echo "NDK: $ANDROID_NDK_LATEST_HOME"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Native build
+        run: ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" tools/android/build_native.sh
+
+      - name: APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease -PptVersionCode=${{ github.run_number }} -PptVersionName=android-${{ github.run_number }}-$(git rev-parse --short HEAD)
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/PT-Android.apk"
+          ls -la "$GITHUB_WORKSPACE/PT-Android.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PT-Android
+          path: PT-Android.apk
+
+      - name: Publish to android-latest
+        if: github.ref == 'refs/heads/android-port'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Build ${{ github.run_number }} from $(git rev-parse --short HEAD). Install PT-Android.apk on an Adreno (Snapdragon) device; see docs/android.md."
+          if gh release view android-latest >/dev/null 2>&1; then
+            gh release upload android-latest PT-Android.apk --clobber
+            gh release edit android-latest --notes "$notes" --prerelease
+          else
+            gh release create android-latest PT-Android.apk --prerelease --title "Android test build" --notes "$notes" --target "$GITHUB_SHA"
+          fi

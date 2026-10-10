@@ -2,11 +2,24 @@ include(FetchContent)
 cmake_policy(SET CMP0169 OLD)
 set(FETCHCONTENT_QUIET ON)
 
+if(ANDROID)
+  # the NDK's Vulkan headers trail the desktop SDKs this was written against: the Khronos headers volk 1.4.350 matches, and the
+  # NDK's libvulkan.so stub only for the find (the loader is opened at run time, src/engine/platform/android.cpp)
+  FetchContent_Declare(vulkan_headers GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git GIT_TAG v1.4.350 GIT_SHALLOW TRUE)
+  FetchContent_Populate(vulkan_headers)
+  set(Vulkan_INCLUDE_DIR "${vulkan_headers_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+endif()
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 find_package(Threads REQUIRED)
 
-set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-set(SDL_STATIC ON CACHE BOOL "" FORCE)
+if(ANDROID)
+  # Android: SDL's Java activity loads libSDL3.so and then libmain.so; a static SDL would lose its JNI entry points at link time
+  set(SDL_SHARED ON CACHE BOOL "" FORCE)
+  set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+else()
+  set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+  set(SDL_STATIC ON CACHE BOOL "" FORCE)
+endif()
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(sdl3 GIT_REPOSITORY https://github.com/libsdl-org/SDL.git GIT_TAG release-3.4.16 GIT_SHALLOW TRUE)
@@ -27,6 +40,10 @@ FetchContent_Declare(lua51 URL https://www.lua.org/ftp/lua-5.1.5.tar.gz
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(sdl3 zlib)
+if(ANDROID AND NOT TARGET SDL3::SDL3-static)
+  # the rest of the build names the static library; on Android it is the shared one
+  add_library(SDL3::SDL3-static ALIAS SDL3-shared)
+endif()
 
 # whisper.cpp (MIT) for the true end's word (formats/voice.md), CPU only. pt.exe stays x86-64 SSE2: whisper and ggml
 # are DLLs in voice/ that VoiceRecognizer loads at run time, and the CPU code is ggml's per-CPU variants
@@ -35,6 +52,10 @@ FetchContent_Declare(whisper URL https://github.com/ggml-org/whisper.cpp/archive
   URL_HASH SHA256=57e280cee375ab02425b806ad5146b99f6eb9357e3c2b31357c8a6af2e2e44ae)
 FetchContent_Populate(whisper)
 set(PT_VOICE_DIR ${CMAKE_BINARY_DIR}/voice)
+if(ANDROID)
+  # Android: no speech recognizer yet; the voice part takes the controller's trigger chord (both triggers) or the key instead
+  add_custom_target(pt_voice_runtime)
+else()
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 set(GGML_BACKEND_DL ON CACHE BOOL "" FORCE)
 set(GGML_CPU_ALL_VARIANTS ON CACHE BOOL "" FORCE)
@@ -143,6 +164,7 @@ file(COPY ${CMAKE_SOURCE_DIR}/third_party/voice_notices/ DESTINATION ${PT_VOICE_
 foreach(stale cmudict-en-us.dict en-us vosk)
   file(REMOVE_RECURSE ${PT_VOICE_DIR}/${stale})
 endforeach()
+endif() # NOT ANDROID (the voice runtime)
 FetchContent_Populate(volk)
 FetchContent_Populate(vma)
 FetchContent_Populate(glm)
@@ -182,6 +204,8 @@ target_include_directories(pt_thirdparty PUBLIC
 target_compile_definitions(pt_thirdparty PUBLIC VK_NO_PROTOTYPES IMGUI_IMPL_VULKAN_USE_VOLK)
 if(WIN32)
   target_compile_definitions(pt_thirdparty PUBLIC VK_USE_PLATFORM_WIN32_KHR)
+elseif(ANDROID)
+  target_compile_definitions(pt_thirdparty PUBLIC VK_USE_PLATFORM_ANDROID_KHR)
 elseif(APPLE)
   # VkPhysicalDevicePortabilitySubsetFeaturesKHR (MoltenVK, src/engine/render/vk_context.cpp) is in the headers' beta part
   target_compile_definitions(pt_thirdparty PUBLIC VK_ENABLE_BETA_EXTENSIONS)
@@ -243,3 +267,15 @@ if(MSVC)
   target_compile_options(pt_vorbis PRIVATE /w)
 endif()
 target_link_libraries(pt_thirdparty PUBLIC pt_vorbis)
+
+if(ANDROID)
+  # libadrenotools (BSD-2-Clause): loads a bundled Mesa Turnip driver in place of the system's Adreno driver
+  # (src/engine/platform/android.cpp); its hook libraries go into the APK next to libmain.so
+  FetchContent_Declare(adrenotools GIT_REPOSITORY https://github.com/bylaws/libadrenotools.git
+    GIT_TAG 8fae8ce254dfc1344527e05301e43f37dea2df80 GIT_SUBMODULES_RECURSE TRUE)
+  FetchContent_GetProperties(adrenotools)
+  if(NOT adrenotools_POPULATED)
+    FetchContent_Populate(adrenotools)
+    add_subdirectory(${adrenotools_SOURCE_DIR} ${adrenotools_BINARY_DIR})
+  endif()
+endif()
