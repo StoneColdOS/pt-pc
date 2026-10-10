@@ -110,8 +110,6 @@ public:
     bool HasDialogueEvent(uint32_t id) const;
     const SoundBankSet& Banks() const { return *banks_; }
     std::vector<EngineNotification> TakeNotifications();
-    // a voice went back to its loop start (EngineNotification::Kind::Loop)
-    void NotifyLoop(Voice& v);
     EngineStats Stats() const;
     uint64_t RenderedFrames() const { return rendered_frames_.load(); }
     MotionLevels Motion() const;
@@ -377,6 +375,8 @@ private:
         float sc_lpf_hist[8][4] = {};
         float sc_dry_prev = 0.0f;
     };
+    // a voice went back to its loop start (EngineNotification::Kind::Loop)
+    void NotifyLoop(Voice& v);
 
     struct BusRuntime {
         uint32_t id = 0;
