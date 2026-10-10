@@ -267,17 +267,8 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
 #ifdef __ANDROID__
         /* SDL would make the surface through the system's libvulkan.so, not the driver this instance comes from (Turnip) */
         if (!created) {
-            auto* native = static_cast<ANativeWindow*>(
-                SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr));
-            VkAndroidSurfaceCreateInfoKHR info{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
-            info.window = native;
-            if (!native || !vkCreateAndroidSurfaceKHR) {
-                LogError("vulkan: no Android window ({}) or no vkCreateAndroidSurfaceKHR", native ? "found" : "missing");
-                return false;
-            }
-            if (!Check(vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface), "vkCreateAndroidSurfaceKHR")) {
-                return false;
-            }
+            window_ = window;
+            if (!CreateAndroidSurface()) return false;
             created = true;
         }
 #endif
@@ -623,7 +614,56 @@ void Context::Shutdown() {
     instance = VK_NULL_HANDLE;
 }
 
+bool Context::CreateAndroidSurface() {
+#ifdef __ANDROID__
+    auto* native = static_cast<ANativeWindow*>(
+        SDL_GetPointerProperty(SDL_GetWindowProperties(window_), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr));
+    if (!native || !vkCreateAndroidSurfaceKHR) {
+        LogError("vulkan: no Android window ({}) or no vkCreateAndroidSurfaceKHR", native ? "found" : "missing");
+        return false;
+    }
+    VkAndroidSurfaceCreateInfoKHR info{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
+    info.window = native;
+    if (!Check(vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface), "vkCreateAndroidSurfaceKHR")) {
+        surface = VK_NULL_HANDLE;
+        return false;
+    }
+    android_native_window_ = native;
+    return true;
+#else
+    return false;
+#endif
+}
+
 bool Context::CreateSwapchain(uint32_t width, uint32_t height, bool vsync, bool want_hdr) {
+#ifdef __ANDROID__
+    /* back from the background (another app, the home screen): Android gave the activity a new window, and the old surface
+       is dead. The swapchain and the surface are made again for the new one; with no window yet, no swapchain this frame. */
+    if (window_) {
+        void* native = SDL_GetPointerProperty(SDL_GetWindowProperties(window_), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr);
+        if (!native) {
+            return false;
+        }
+        if (native != android_native_window_ || !surface) {
+            LogInfo("vulkan: new Android window, making the surface again");
+            vkDeviceWaitIdle(device);
+            DestroySwapchain();
+            if (surface) {
+                vkDestroySurfaceKHR(instance, surface, nullptr);
+                surface = VK_NULL_HANDLE;
+            }
+            if (!CreateAndroidSurface()) {
+                return false;
+            }
+            VkBool32 present = VK_FALSE;
+            vkGetPhysicalDeviceSurfaceSupportKHR(physical, queue_family, surface, &present);
+            if (!present) {
+                LogError("vulkan: the new Android window cannot be presented to from queue family {}", queue_family);
+                return false;
+            }
+        }
+    }
+#endif
     vkDeviceWaitIdle(device);
     swapchain_refused = false;
     vsync = vsync && !force_vsync_off;
@@ -724,7 +764,14 @@ bool Context::CreateSwapchain(uint32_t width, uint32_t height, bool vsync, bool 
         }
         swapchain_owner_ = swapchain_hooks;
     } else {
-        if (!Check(vkCreateSwapchainKHR(device, &info, nullptr, &handle), "vkCreateSwapchainKHR")) {
+        const VkResult created_swapchain = vkCreateSwapchainKHR(device, &info, nullptr, &handle);
+        if (!Check(created_swapchain, "vkCreateSwapchainKHR")) {
+#ifdef __ANDROID__
+            /* a dead surface on a window Android handed back under the same pointer: made again on the next try, a little later
+               (no tight loop of failures while the window settles) */
+            android_native_window_ = nullptr;
+            SDL_Delay(50);
+#endif
             swapchain_refused = true;
             return false;
         }

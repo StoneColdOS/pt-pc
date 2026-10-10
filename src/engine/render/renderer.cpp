@@ -676,7 +676,7 @@ void Renderer::EndFrame(bool draw_ui) {
         const VkResult result = ctx_.QueuePresent(present);
         streamline::SetMarker(streamline::Marker::PresentEnd);
         ctx_.CheckDeviceLost(result, "present");
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_SURFACE_LOST_KHR) {
             swapchain_dirty_ = true;
         }
     }

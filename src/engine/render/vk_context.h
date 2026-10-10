@@ -127,6 +127,11 @@ public:
 private:
     VkCommandPool upload_pool_ = VK_NULL_HANDLE;
     SwapchainHooks* swapchain_owner_ = nullptr;
+    // Android: the window and the native window the surface was made for. Android hands the app a new native window after
+    // it comes back from the background; the surface is then made again (CreateSwapchain)
+    SDL_Window* window_ = nullptr;
+    void* android_native_window_ = nullptr;
+    bool CreateAndroidSurface();
 };
 
 /* The Vulkan library to load: on macOS MoltenVK, shipped with the game (docs/macos.md); empty elsewhere, where volk finds the
