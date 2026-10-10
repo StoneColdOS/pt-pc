@@ -733,6 +733,11 @@ void ApplyFullscreen(App& app) {
     if (!app.window) {
         return;
     }
+#ifdef __ANDROID__
+    // always the whole screen on Android: the PC's window modes do not apply
+    SDL_SetWindowFullscreen(app.window, true);
+    return;
+#endif
     int mode = std::clamp(app.settings.display.fullscreen, 0, 2);
     if (mode == 2) {
         const SDL_DisplayID display = SDL_GetDisplayForWindow(app.window);
@@ -5287,8 +5292,14 @@ int main(int argc, char** argv) {
         if (const std::string vulkan = pt::vk::VulkanLibraryPath(); !vulkan.empty()) {
             SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, vulkan.c_str());
         }
+#ifdef __ANDROID__
+        // the whole screen, without Android's status and navigation bars
+        app.window = SDL_CreateWindow("P.T.", app.settings.display.width, app.settings.display.height,
+                                      SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+#else
         app.window = SDL_CreateWindow("P.T.", app.settings.display.width, app.settings.display.height,
                                       SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+#endif
         if (!app.window) {
             pt::LogError("SDL_CreateWindow: {}", SDL_GetError());
             startup_failure(std::string("The game window could not be created: ") + SDL_GetError() + ".", driver_advice);
