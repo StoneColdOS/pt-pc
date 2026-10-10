@@ -738,6 +738,11 @@ void ApplyFullscreen(App& app) {
     SDL_SetWindowFullscreen(app.window, true);
     return;
 #endif
+#ifdef __ANDROID__
+    // always the whole screen on Android: the PC's window modes do not apply
+    SDL_SetWindowFullscreen(app.window, true);
+    return;
+#endif
     int mode = std::clamp(app.settings.display.fullscreen, 0, 2);
     if (mode == 2) {
         const SDL_DisplayID display = SDL_GetDisplayForWindow(app.window);
@@ -5297,8 +5302,14 @@ int main(int argc, char** argv) {
         app.window = SDL_CreateWindow("P.T.", app.settings.display.width, app.settings.display.height,
                                       SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 #else
+#ifdef __ANDROID__
+        // the whole screen, without Android's status and navigation bars
+        app.window = SDL_CreateWindow("P.T.", app.settings.display.width, app.settings.display.height,
+                                      SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+#else
         app.window = SDL_CreateWindow("P.T.", app.settings.display.width, app.settings.display.height,
                                       SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+#endif
 #endif
         if (!app.window) {
             pt::LogError("SDL_CreateWindow: {}", SDL_GetError());

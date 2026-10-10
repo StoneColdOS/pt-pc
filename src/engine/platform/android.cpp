@@ -229,18 +229,25 @@ bool UnpackBundledAssets() {
 
 namespace {
 
-PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
-    std::string choice = "turnip";
-    {
-        std::ifstream in(DataDir() / "driver.txt");
+// driver.txt: in Download/PT-logs (reachable with a file manager), else in the app's own folder
+std::string DriverChoice() {
+    for (const std::filesystem::path& file : {LogDir() / "driver.txt", DataDir() / "driver.txt"}) {
+        std::ifstream in(file);
         std::string line;
-        if (std::getline(in, line)) {
+        if (std::getline(in, line) && !Trim(line).empty()) {
             line = Trim(line);
-            std::transform(line.begin(), line.end(), line.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (!line.empty()) choice = line;
+            LogInfo("android: driver.txt in {}: {}", file.parent_path().string(), line);
+            return line;
         }
     }
-    if (choice == "system") {
+    return "turnip";
+}
+
+PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
+    const std::string choice = DriverChoice();
+    std::string lower = choice;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (lower == "system") {
         name = "system driver (driver.txt)";
         return nullptr;
     }
@@ -250,23 +257,43 @@ PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
         name = "system driver (no library folder)";
         return nullptr;
     }
+    const std::string hook_dir = lib_dir + "/";
+    std::string driver_dir = hook_dir;
+    std::string driver_file = "libvulkan_turnip.so";
+    std::string label = "Mesa Turnip (bundled)";
+    if (lower != "turnip") {
+        /* another driver: a .so (the one inside an AdrenoTools driver zip) named in driver.txt and put next to it. A library
+           cannot be loaded from shared storage, so it is copied into the app's private folder first. */
+        const std::filesystem::path source = LogDir() / choice;
+        const std::filesystem::path private_dir = std::filesystem::path(SDL_GetAndroidInternalStoragePath()) / "drivers";
+        std::error_code ec;
+        std::filesystem::create_directories(private_dir, ec);
+        const std::filesystem::path target = private_dir / source.filename();
+        if (!std::filesystem::is_regular_file(source, ec) ||
+            !std::filesystem::copy_file(source, target, std::filesystem::copy_options::overwrite_existing, ec)) {
+            LogWarn("android: driver {} not found or not copied ({}), using the bundled Turnip", source.string(), ec.message());
+        } else {
+            driver_dir = private_dir.string() + "/";
+            driver_file = source.filename().string();
+            label = "custom driver " + driver_file;
+        }
+    }
     const char* cache = SDL_GetAndroidCachePath();
-    const std::string dir = lib_dir + "/";
-    void* handle = adrenotools_open_libvulkan(RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, cache, dir.c_str(), dir.c_str(),
-                                              "libvulkan_turnip.so", nullptr, nullptr);
+    void* handle = adrenotools_open_libvulkan(RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, cache, hook_dir.c_str(), driver_dir.c_str(),
+                                              driver_file.c_str(), nullptr, nullptr);
     if (!handle) {
         const char* error = dlerror();
-        LogWarn("android: libadrenotools could not load Turnip ({}), using the system driver", error ? error : "no error text");
-        name = "system driver (Turnip failed to load)";
+        LogWarn("android: libadrenotools could not load {} ({}), using the system driver", label, error ? error : "no error text");
+        name = "system driver (" + label + " failed to load)";
         return nullptr;
     }
     auto proc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(dlsym(handle, "vkGetInstanceProcAddr"));
     if (!proc) {
-        LogWarn("android: Turnip has no vkGetInstanceProcAddr, using the system driver");
-        name = "system driver (Turnip incomplete)";
+        LogWarn("android: {} has no vkGetInstanceProcAddr, using the system driver", label);
+        name = "system driver (" + label + " incomplete)";
         return nullptr;
     }
-    name = "Mesa Turnip (bundled)";
+    name = label;
     return proc;
 }
 

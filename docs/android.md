@@ -21,7 +21,8 @@ file managers cannot write there on Android 11 and newer.
   under the tag `pt`. Without All files access they are in `Android/data/com.ptport.app/files/data/` instead.
 - `Download/PT-logs/render_scale.txt`: the render size against the screen, `0.667` by default (`0.5` faster, `1` sharpest).
 - `Android/data/com.ptport.app/files/data/pt.ini`: settings and saves, as on PC.
-- `Android/data/com.ptport.app/files/driver.txt`: `turnip` (default, the bundled Mesa Turnip) or `system`.
+- `Download/PT-logs/driver.txt`: the Vulkan driver. `turnip` (default, the bundled Mesa Turnip), `system` (the device's
+  own Qualcomm driver), or the file name of another driver's `.so` (from an AdrenoTools driver zip) put in the same folder.
 
 ## Performance
 
@@ -36,7 +37,6 @@ A built-in or connected gamepad works as the PS4 pad. The voice part (saying "Ja
 
 - No speech recognition yet; use the trigger chord.
 - Switching away from the app while playing may lose the window and crash; save first.
-- Android's status bar stays over the top of the picture (the game runs windowed).
 - The PC upscalers, ray tracing, VR, enhanced textures and loop previews are not available.
 
 ## Building
