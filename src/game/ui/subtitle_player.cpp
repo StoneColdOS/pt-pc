@@ -134,6 +134,7 @@ bool SubtitlePlayer::PlayKey(uint32_t key, float offset_seconds, std::optional<g
         return false;
     }
     active_.erase(std::remove_if(active_.begin(), active_.end(), [&](const Playing& p) { return p.key == key; }), active_.end());
+    std::erase_if(finished_, [&](const Playing& p) { return p.key == key; });
     Playing playing;
     playing.key = key;
     playing.id = entry->id;
@@ -148,7 +149,30 @@ bool SubtitlePlayer::PlayKey(uint32_t key, float offset_seconds, std::optional<g
     return true;
 }
 
+void SubtitlePlayer::Rewind(uint32_t sound, float time) {
+    if (sound == 0) return;
+    for (Playing& p : active_) {
+        if (p.sound == sound) {
+            LogInfo("ui: subtitle {:#x} {} rewinds to {:.2f} s with its looping sound", p.key, p.id, time);
+            p.time = time;
+            return;
+        }
+    }
+    for (auto it = finished_.begin(); it != finished_.end(); ++it) {
+        if (it->sound == sound) {
+            Playing again = *it;
+            finished_.erase(it);
+            again.time = time;
+            again.order = ++order_;
+            LogInfo("ui: subtitle {:#x} {} plays again from {:.2f} s with its looping sound", again.key, again.id, time);
+            active_.push_back(std::move(again));
+            return;
+        }
+    }
+}
+
 void SubtitlePlayer::EndStopped(const std::function<bool(uint32_t)>& alive) {
+    std::erase_if(finished_, [&](const Playing& p) { return !alive(p.sound); });
     std::erase_if(active_, [&](const Playing& p) {
         if (p.sound == 0 || alive(p.sound)) return false;
         LogInfo("ui: subtitle {:#x} {} ended with its sound at {:.2f} s", p.key, p.id, p.time);
@@ -173,7 +197,12 @@ void SubtitlePlayer::Update(float dt) {
     active_.erase(std::remove_if(active_.begin(), active_.end(),
                                  [&](const Playing& p) {
                                      const audio::SubtitleEntry* entry = Entry(p.key);
-                                     return !entry || entry->lines.empty() || p.time >= entry->lines.back().end_seconds;
+                                     const bool done = !entry || entry->lines.empty() || p.time >= entry->lines.back().end_seconds;
+                                     if (done && entry && p.sound != 0) {
+                                         std::erase_if(finished_, [&](const Playing& f) { return f.sound == p.sound; });
+                                         if (finished_.size() < 16) finished_.push_back(p);
+                                     }
+                                     return done;
                                  }),
                   active_.end());
 }

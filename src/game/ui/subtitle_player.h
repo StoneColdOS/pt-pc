@@ -40,7 +40,13 @@ public:
     void EndStopped(const std::function<bool(uint32_t)>& alive);
     bool Seek(uint32_t key, float time);
     void Update(float dt);
-    void Clear() { active_.clear(); }
+    void Clear() {
+        active_.clear();
+        finished_.clear();
+    }
+    // the sound that started a subtitle looped back to its start: the subtitle goes back to `time`, played again if it had
+    // run out while its sound went on (the later radio repeats its broadcast for as long as the player stays)
+    void Rewind(uint32_t sound, float time);
     void SetListener(const glm::vec3& position) { listener_ = position; }
     bool Current(std::string_view hidden_id, SubtitleView& out) const;
     // a radio broadcast (character 2) is playing but between its voice lines, in a gap of at least min_gap seconds: the
@@ -82,6 +88,8 @@ private:
     int language_ = 0;
     std::array<std::unique_ptr<LanguageData>, kLanguageCount> languages_;
     std::vector<Playing> active_;
+    // subtitles that ran out while their sound still plays, for Rewind
+    std::vector<Playing> finished_;
     uint64_t order_ = 0;
     glm::vec3 listener_{0.0f};
 };

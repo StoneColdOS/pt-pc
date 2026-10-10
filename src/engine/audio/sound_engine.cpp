@@ -752,6 +752,15 @@ void SoundEngine::SetMasterGain(float gain) {
     Push(std::move(command));
 }
 
+void SoundEngine::NotifyLoop(Voice& v) {
+    if (v.marker_sample < 0 || !v.media || v.media->SampleRate() == 0) {
+        return;
+    }
+    EngineNotification n{EngineNotification::Kind::Loop, v.playing_id, {}};
+    n.seconds = static_cast<float>((static_cast<double>(v.source_pos) - static_cast<double>(v.marker_sample)) / v.media->SampleRate());
+    pending_notifications_.push_back(std::move(n));
+}
+
 std::vector<EngineNotification> SoundEngine::TakeNotifications() {
     std::lock_guard lock(notify_mutex_);
     std::vector<EngineNotification> out;
@@ -2879,8 +2888,10 @@ void SoundEngine::UpdateVoiceParams(Voice& v) {
                 FinishVoice(v, now_);
                 return;
             }
+            const bool wrapped = target < v.source_pos;
             v.source_pos = target;
             v.reader->Seek(target);
+            if (wrapped) NotifyLoop(v);
         }
         v.rs_count = 1;
         v.rs_pos = 1.0;
@@ -2988,6 +2999,7 @@ uint32_t SoundEngine::PullSource(Voice& v, float* left, float* right, uint32_t f
                 if (pass_end <= v.source_pos) {
                     break;
                 }
+                NotifyLoop(v);
                 continue;
             }
             break;
@@ -3004,6 +3016,7 @@ uint32_t SoundEngine::PullSource(Voice& v, float* left, float* right, uint32_t f
         for (const auto& marker : v.markers) {
             if (marker.sample >= v.source_pos && marker.sample < v.source_pos + got && !marker.label.empty()) {
                 pending_notifications_.push_back({EngineNotification::Kind::Marker, v.playing_id, marker.label});
+                v.marker_sample = marker.sample;
             }
         }
         const float* src = v.scratch.data();

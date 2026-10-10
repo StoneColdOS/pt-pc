@@ -297,6 +297,9 @@ void GameUi::Update(Game& game, const InputState& input, float dt) {
     for (const Game::SubtitleRequest& request : game.TakeSubtitleRequests()) {
         subtitles_.Play(request.subtitle_id, request.offset_seconds, std::nullopt, request.sound);
     }
+    for (const Game::SubtitleRewind& rewind : game.TakeSubtitleRewinds()) {
+        subtitles_.Rewind(rewind.sound, rewind.seconds);
+    }
     if (GameAudio* audio = game.Audio()) {
         subtitles_.EndStopped([&](uint32_t sound) { return audio->IsPlaying(sound); });
     }

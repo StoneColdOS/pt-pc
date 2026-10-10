@@ -86,6 +86,8 @@ public:
     PlayingId PlayStream(std::vector<uint8_t> wem_riff, GameObjectId object = 0);
     void SetMarkerCallback(std::function<void(PlayingId, std::string_view label)> callback);
     void SetEndCallback(std::function<void(PlayingId)> callback);
+    // a looping sound that fired a marker went back to its loop start, now `seconds` past that marker
+    void SetLoopCallback(std::function<void(PlayingId, float seconds)> callback);
 
     void Update(float dt);
     void RenderOffline(float* interleaved_stereo, uint32_t frames);
@@ -113,6 +115,7 @@ private:
     std::unique_ptr<AudioOutput> output_;
     std::function<void(PlayingId, std::string_view)> marker_callback_;
     std::function<void(PlayingId)> end_callback_;
+    std::function<void(PlayingId, float)> loop_callback_;
     SubtitleTable subtitles_;
     std::mutex warn_mutex_;
     std::unordered_set<uint32_t> warned_events_;

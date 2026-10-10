@@ -94,6 +94,10 @@ bool GameSound::Init(bool open_device, std::string_view language, bool surround)
             game_.NoteArchive(key);
         }
     });
+    system_.SetLoopCallback([this](audio::PlayingId playing, float seconds) {
+        LogInfo("sound: {} looped, {:.2f} s past its marker", playing, seconds);
+        game_.QueueSubtitleRewind(playing, seconds);
+    });
     LogInfo("sound: ready (device {})", system_.DeviceOpen());
     return true;
 }

@@ -238,6 +238,10 @@ void SoundSystem::SetEndCallback(std::function<void(PlayingId)> callback) {
     end_callback_ = std::move(callback);
 }
 
+void SoundSystem::SetLoopCallback(std::function<void(PlayingId, float)> callback) {
+    loop_callback_ = std::move(callback);
+}
+
 void SoundSystem::Update(float) {
     if (!engine_) {
         return;
@@ -246,6 +250,10 @@ void SoundSystem::Update(float) {
         if (notification.kind == EngineNotification::Kind::Marker) {
             if (marker_callback_) {
                 marker_callback_(notification.playing_id, notification.label);
+            }
+        } else if (notification.kind == EngineNotification::Kind::Loop) {
+            if (loop_callback_) {
+                loop_callback_(notification.playing_id, notification.seconds);
             }
         } else if (end_callback_) {
             end_callback_(notification.playing_id);

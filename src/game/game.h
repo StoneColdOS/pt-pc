@@ -307,6 +307,13 @@ public:
         subtitle_requests_.push_back({std::string(subtitle_id), offset_seconds, sound});
     }
     std::vector<SubtitleRequest> TakeSubtitleRequests() { return std::exchange(subtitle_requests_, {}); }
+    // a looping sound went back to its start: the subtitle it started rewinds to `seconds` (SubtitlePlayer::Rewind)
+    struct SubtitleRewind {
+        uint32_t sound = 0;
+        float seconds = 0.0f;
+    };
+    void QueueSubtitleRewind(uint32_t sound, float seconds) { subtitle_rewinds_.push_back({sound, seconds}); }
+    std::vector<SubtitleRewind> TakeSubtitleRewinds() { return std::exchange(subtitle_rewinds_, {}); }
     // a loop transition drops the previous loop's speech: the next GameUi::Update consumes this and clears its player
     void ClearPendingSubtitles();
     bool TakeSubtitleClear() { return std::exchange(clear_subtitles_pending_, false); }
@@ -684,6 +691,7 @@ private:
     bool archive_theater_showing_ = false;
     TheaterControl theater_;
     std::vector<SubtitleRequest> subtitle_requests_;
+    std::vector<SubtitleRewind> subtitle_rewinds_;
     bool clear_subtitles_pending_ = false;
 };
 

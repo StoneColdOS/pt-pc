@@ -70,10 +70,13 @@ struct EngineStats {
 };
 
 struct EngineNotification {
-    enum class Kind { Marker, End };
+    // Loop: a looping voice that has fired a marker went back to its loop start; seconds is where it is now, counted from
+    // that marker (a subtitle the marker started rewinds to it: the later radio repeats its broadcast)
+    enum class Kind { Marker, End, Loop };
     Kind kind = Kind::End;
     PlayingId playing_id = 0;
     std::string label;
+    float seconds = 0.0f;
 };
 
 class SoundEngine {
@@ -107,6 +110,8 @@ public:
     bool HasDialogueEvent(uint32_t id) const;
     const SoundBankSet& Banks() const { return *banks_; }
     std::vector<EngineNotification> TakeNotifications();
+    // a voice went back to its loop start (EngineNotification::Kind::Loop)
+    void NotifyLoop(Voice& v);
     EngineStats Stats() const;
     uint64_t RenderedFrames() const { return rendered_frames_.load(); }
     MotionLevels Motion() const;
@@ -295,6 +300,8 @@ private:
         uint64_t start_time = 0;
         bool started = false;
         uint64_t source_pos = 0;
+        // the sample of the last marker this voice fired, -1 none (EngineNotification::Kind::Loop)
+        int64_t marker_sample = -1;
         uint64_t source_total = 0;
         uint64_t range_begin = 0;
         uint64_t range_end = 0;
