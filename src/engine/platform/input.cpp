@@ -445,6 +445,20 @@ void InputDevice::Open(uint32_t id) {
     pad.trigger_rumble_supported = Describe(handle).trigger_rumble;
     pads_.push_back(std::move(pad));
     LogInfo("input: gamepad opened: {} ({} connected)", DescribeGamepad(Describe(handle)), pads_.size());
+#ifdef __ANDROID__
+    // Android handhelds come with guessed mappings: which raw axis became which stick or trigger
+    if (char* mapping = SDL_GetGamepadMapping(handle)) {
+        LogInfo("input: mapping {}", mapping);
+        SDL_free(mapping);
+    }
+    if (SDL_Joystick* joystick = SDL_GetGamepadJoystick(handle)) {
+        std::string rest;
+        for (int axis = 0; axis < SDL_GetNumJoystickAxes(joystick); ++axis) {
+            rest += std::format(" a{}={}", axis, SDL_GetJoystickAxis(joystick, axis));
+        }
+        LogInfo("input: raw axes at rest:{} ({} buttons, {} hats)", rest, SDL_GetNumJoystickButtons(joystick), SDL_GetNumJoystickHats(joystick));
+    }
+#endif
 }
 
 void InputDevice::Close(uint32_t id) {
@@ -578,6 +592,21 @@ void InputDevice::ProcessEvent(const SDL_Event& event) {
         }
         break;
     case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+#ifdef __ANDROID__
+        {
+            // each axis crossing half travel, both ways, for the first few hundred: shows a swapped or resting axis
+            static int logged = 0;
+            static bool beyond[SDL_GAMEPAD_AXIS_COUNT] = {};
+            const int axis = event.gaxis.axis;
+            const bool now = event.gaxis.value > 16000 || event.gaxis.value < -16000;
+            if (axis >= 0 && axis < SDL_GAMEPAD_AXIS_COUNT && now != beyond[axis] && logged < 400) {
+                beyond[axis] = now;
+                ++logged;
+                LogInfo("input: axis {} {} ({})", SDL_GetGamepadStringForAxis(static_cast<SDL_GamepadAxis>(axis)), now ? "pushed" : "released",
+                        event.gaxis.value);
+            }
+        }
+#endif
         if (Pad* pad = Find(event.gaxis.which); pad && (event.gaxis.value > kPromptAxis || event.gaxis.value < -kPromptAxis)) {
             UsePrompts(pad->style, pad->id);
         }
