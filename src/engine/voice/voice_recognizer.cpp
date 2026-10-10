@@ -617,7 +617,8 @@ bool VoiceRecognizer::LoadModels(const std::filesystem::path& model_dir) {
             whisper2_ = g_api.whisper_init_with_params(&second_loader, params);
         }
         if (!whisper2_) {
-            LogWarn("voice: second opinion model {} not loaded, short utterances are decoded once", name);
+            LogWarn("voice: second opinion model {} not loaded, short utterances get a second look from {} told to expect the word",
+                    name, WhisperModelName());
         } else {
             for (const char* spelling : {" Jack", " jack", " JACK"}) {
                 whisper_token tokens[8];
@@ -630,7 +631,12 @@ bool VoiceRecognizer::LoadModels(const std::filesystem::path& model_dir) {
         }
     }
     const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+#ifdef __ANDROID__
+    // a phone's 8 cores are mostly small ones: a quarter of them made a decode take 0.7 s on a Snapdragon 8 Gen 2
+    threads_ = settings.threads > 0 ? settings.threads : static_cast<int>(std::clamp(cores / 2, 1u, 4u));
+#else
     threads_ = settings.threads > 0 ? settings.threads : static_cast<int>(std::clamp(cores / 4, 1u, 4u));
+#endif
     failure_ = Failure::None;
     LogInfo("voice: {} and {} loaded in {:.0f} ms, {} threads", WhisperModelName(), kVadModel,
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count(), threads_);
@@ -893,7 +899,13 @@ VoiceRecognizer::Result VoiceRecognizer::Transcribe(std::vector<float> audio) {
         case 1: second = Decode(whisper_, jack_tokens_, audio, "Jack.", 0, 0.0f, 1); break;
         case 2: second = Decode(whisper_, jack_tokens_, audio, settings.prompt.c_str(), 0, 0.4f, 5); break;
         case 4:
-            if (whisper2_) second = Decode(whisper2_, jack_tokens2_, audio, settings.prompt.c_str(), 0, 0.0f, 1);
+            if (whisper2_) {
+                second = Decode(whisper2_, jack_tokens2_, audio, settings.prompt.c_str(), 0, 0.0f, 1);
+            } else {
+                // no second model (the Android APK leaves small.en out): base.en again, told to expect the word, which
+                // turns its near misses ("check", "deck") into it at the price of some rhymes (formats/voice.md)
+                second = Decode(whisper_, jack_tokens_, audio, "Jack.", 0, 0.0f, 1);
+            }
             break;
         default: second = Decode(whisper_, jack_tokens_, audio, settings.prompt.c_str(), 5, 0.0f, 1); break;
         }
@@ -901,7 +913,12 @@ VoiceRecognizer::Result VoiceRecognizer::Transcribe(std::vector<float> audio) {
             int words2 = 0;
             bool hit = MatchesKeyword(second.text, 3, &words2);
             if (!hit && words2 <= 3 && second.probability >= settings.rescue_jack_probability) hit = true;
-            if (VoiceDiagnosticsEnabled() || std::getenv("PT_VOICE_RESCUE_LOG")) {
+#ifdef __ANDROID__
+            const bool log_second = true; // the Android logs are how its recognition gets tuned
+#else
+            const bool log_second = VoiceDiagnosticsEnabled() || std::getenv("PT_VOICE_RESCUE_LOG");
+#endif
+            if (log_second) {
                 LogInfo("voice: second look '{}' -> '{}' p {:.3f}{}", result.text, second.text, second.probability, hit ? ": the word" : "");
             }
             if (hit) {
