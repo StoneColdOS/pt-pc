@@ -183,6 +183,11 @@ endif()
 
 file(GLOB LUA51_SOURCES ${lua51_SOURCE_DIR}/src/*.c)
 list(FILTER LUA51_SOURCES EXCLUDE REGEX ".*/(lua|luac|print)\\.c$")
+if(ANDROID)
+  # Lua 5.1 reads a string's text past the end of its TString header (getstr), which bionic's FORTIFY strchr takes for an
+  # overrun and aborts on (lgc.c traversetable, the first garbage collection); the reads are in bounds
+  set_source_files_properties(${LUA51_SOURCES} PROPERTIES COMPILE_OPTIONS "-U_FORTIFY_SOURCE")
+endif()
 
 add_library(pt_thirdparty STATIC
   ${volk_SOURCE_DIR}/volk.c
