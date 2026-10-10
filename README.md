@@ -62,7 +62,8 @@ Two optional files in that folder for tinkering:
 ## Dual-screen handhelds
 
 On an AYN Thor (or a similar handheld with a second screen) the bottom screen shows the hallway's clock, frozen at 23:59,
-with the loop you're on, and the radio and other subtitle lines as they play. Change it in the game's settings under
+with the loop you're on, and the radio and other subtitle lines as they play (the whole broadcast, even the lines the
+main screen skips on repeat loops, with *static* marking where the voice drops out). Change it in the game's settings under
 **Display > Second screen**: clock and subtitles, clock only, dim clock, or off.
 
 ## Known issues

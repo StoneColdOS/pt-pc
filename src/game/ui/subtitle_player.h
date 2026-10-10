@@ -43,6 +43,9 @@ public:
     void Clear() { active_.clear(); }
     void SetListener(const glm::vec3& position) { listener_ = position; }
     bool Current(std::string_view hidden_id, SubtitleView& out) const;
+    // a radio broadcast (character 2) is playing but between its voice lines, in a gap of at least min_gap seconds: the
+    // static the later radio is mostly made of, which has no subtitle of its own (the Android second screen tags it)
+    bool InRadioGap(float min_gap) const;
     // every line of a subtitle in a language (English where that language lacks it), with its start and end: the Archive's
     // transcripts (main.cpp)
     struct TranscriptLine {

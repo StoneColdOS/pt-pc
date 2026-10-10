@@ -360,6 +360,10 @@ final class SecondScreen {
             float ruleY = padTop + height + 28 * s;
             canvas.drawRect(padX, ruleY, w - padX, ruleY + Math.max(1f, s), rule);
             if (currentLine.isEmpty()) return;
+            // a sound cue from the game (*static*): the loop label's blue and slanted, so it reads as the radio, not a voice
+            final boolean cue = currentLine.length() > 2 && currentLine.startsWith("*") && currentLine.endsWith("*");
+            subtitle.setColor(cue ? LABEL : Color.rgb(0xE8, 0xEC, 0xF4));
+            subtitle.setTextSkewX(cue ? -0.2f : 0f);
             subtitle.setTextSize(26 * s);
             int width = (int) Math.max(1, w - 2 * padX);
             StaticLayout layout = StaticLayout.Builder.obtain(currentLine, 0, currentLine.length(), subtitle, width)

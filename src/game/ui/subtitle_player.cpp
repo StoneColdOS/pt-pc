@@ -196,6 +196,22 @@ std::vector<SubtitlePlayer::TranscriptLine> SubtitlePlayer::Transcript(std::stri
     return out;
 }
 
+bool SubtitlePlayer::InRadioGap(float min_gap) const {
+    for (const Playing& p : active_) {
+        const audio::SubtitleEntry* entry = Entry(p.key);
+        if (!entry || entry->character != 2 || entry->lines.empty() || !InRange(p, *entry)) continue;
+        float gap_start = 0.0f;
+        for (const audio::SubtitleLine& line : entry->lines) {
+            if (p.time < line.start_seconds) {
+                if (p.time >= gap_start && line.start_seconds - gap_start >= min_gap) return true;
+                break;
+            }
+            gap_start = line.end_seconds;
+        }
+    }
+    return false;
+}
+
 bool SubtitlePlayer::Current(std::string_view hidden_id, SubtitleView& out) const {
     const Playing* best = nullptr;
     int best_priority = 0;
