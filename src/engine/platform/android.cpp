@@ -14,6 +14,7 @@
 #include <unwind.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include <algorithm>
@@ -110,6 +111,20 @@ std::filesystem::path LogDir() {
         return own;
     }();
     return dir;
+}
+
+float RenderScale() {
+    float scale = 0.667f;
+    std::ifstream in(LogDir() / "render_scale.txt");
+    std::string line;
+    if (std::getline(in, line)) {
+        line = Trim(line);
+        char* end = nullptr;
+        const float value = std::strtof(line.c_str(), &end);
+        if (end != line.c_str()) scale = std::clamp(value, 0.25f, 1.0f);
+    }
+    LogInfo("android: render scale {:.3f}", scale);
+    return scale;
 }
 
 namespace {

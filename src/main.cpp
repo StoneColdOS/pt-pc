@@ -4604,6 +4604,14 @@ int RunGame(App& app, pt::Vfs& vfs) {
         } else if (!vr && options.headless) {
             base_render_extent = {options.width, options.height};
         }
+#ifdef __ANDROID__
+        /* a handheld's GPU: the scene at a fraction of the screen's pixels, scaled up when presented (render_scale.txt) */
+        if (base_render_extent.width > 0) {
+            static const float scale = pt::android::RenderScale();
+            base_render_extent.width = std::max(2u, static_cast<uint32_t>(base_render_extent.width * scale) & ~1u);
+            base_render_extent.height = std::max(2u, static_cast<uint32_t>(base_render_extent.height * scale) & ~1u);
+        }
+#endif
         app.renderer.SetRenderExtent(base_render_extent);
         // the photo mode's panel, left out of the frame a photo is taken in (the letterbox stays in it)
         if (photo_mode) {

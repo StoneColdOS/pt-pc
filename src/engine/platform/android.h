@@ -17,6 +17,9 @@ std::filesystem::path DataDir();
    LocalSend), otherwise DataDir()/data. */
 std::filesystem::path LogDir();
 
+/* The scene's render size against the screen: 0.667 unless LogDir()/render_scale.txt holds another (0.25 to 1). */
+float RenderScale();
+
 /* Writes the signal, the fault address and a backtrace (library + offset per frame) to `path` when the game crashes. */
 void InstallCrashLog(const std::filesystem::path& path);
 
