@@ -141,6 +141,35 @@ float RenderScale() {
     return scale;
 }
 
+void UpdateSecondScreen(int loop, const std::string& line) {
+    static int last_loop = -1;
+    static std::string last_line;
+    static bool first = true;
+    if (!first && loop == last_loop && line == last_line) return;
+    first = false;
+    last_loop = loop;
+    last_line = line;
+    auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
+    auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
+    if (!env || !activity) return;
+    // the activity's own class: FindClass from this thread would not see the app's classes
+    jclass cls = env->GetObjectClass(activity);
+    static jmethodID update = nullptr;
+    if (!update) update = env->GetStaticMethodID(cls, "updateSecondScreen", "(I[B)V");
+    if (update) {
+        // UTF-8 bytes, decoded in Java: NewStringUTF wants modified UTF-8 and rejects some valid text
+        jbyteArray bytes = env->NewByteArray(static_cast<jsize>(line.size()));
+        if (bytes) {
+            env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(line.size()), reinterpret_cast<const jbyte*>(line.data()));
+            env->CallStaticVoidMethod(cls, update, static_cast<jint>(loop), bytes);
+            env->DeleteLocalRef(bytes);
+        }
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(activity);
+}
+
 namespace {
 
 int g_crash_fd = -1;

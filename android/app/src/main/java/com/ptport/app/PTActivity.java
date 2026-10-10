@@ -11,6 +11,14 @@ import org.libsdl.app.SDLActivity;
 /* SDL's activity starts SDL_main in libmain.so (the game, src/main.cpp). The hook libraries and the Turnip driver are not
    loaded here: libadrenotools opens them itself when the game starts Vulkan (src/engine/platform/android.cpp). */
 public class PTActivity extends SDLActivity {
+    private SecondScreen secondScreen;
+
+    // from the game (src/engine/platform/android.cpp UpdateSecondScreen): the loop and the subtitle line, UTF-8
+    @SuppressWarnings("unused")
+    public static void updateSecondScreen(int loop, byte[] line) {
+        SecondScreen.update(loop, line);
+    }
+
     @Override
     protected String[] getLibraries() {
         return new String[] { "SDL3", "main" };
@@ -20,6 +28,33 @@ public class PTActivity extends SDLActivity {
     protected void onCreate(Bundle savedInstanceState) {
         installJavaCrashLog();
         super.onCreate(savedInstanceState);
+        secondScreen = new SecondScreen(this);
+    }
+
+    // shown while the game is visible (start/stop, not resume/pause: a second-display activity can pause this one without
+    // hiding it, which would take the clock down and up again)
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (secondScreen != null) {
+            try {
+                secondScreen.resume();
+            } catch (Throwable t) {
+                android.util.Log.w("pt", "second screen: " + t);
+            }
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        if (secondScreen != null) {
+            try {
+                secondScreen.pause();
+            } catch (Throwable t) {
+                android.util.Log.w("pt", "second screen: " + t);
+            }
+        }
+        super.onStop();
     }
 
     /* A crash on the Java side (SDL's activity) goes to Download/PT-logs/pt-java-crash.txt, or the app's own folder. */

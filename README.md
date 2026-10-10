@@ -59,11 +59,16 @@ Two optional files in that folder for tinkering:
 - `driver.txt`: `turnip` (default, the bundled Mesa Turnip driver), `system` (your device's own driver), or the file name
   of another driver's `.so` placed in the same folder.
 
+## Dual-screen handhelds
+
+On an AYN Thor (or a similar handheld with a second screen) the bottom screen shows a frozen 23:59 clock with the loop
+you're on, and the radio and other subtitle lines as they play. Want it different? Put a file named `second_screen.txt`
+in `Download/PT-logs` containing `clock` (clock only), `dim` (a faint clock on black) or `off`.
+
 ## Known issues
 
 - No microphone for the voice part (use the triggers).
 - The PC extras that need a desktop (upscalers, ray tracing, VR, enhanced textures, loop previews) are off.
-- The second screen of dual-screen handhelds is not used.
 
 ## Building
 
@@ -78,6 +83,8 @@ in [docs/android.md](docs/android.md).
   [KIMCHI AdrenoTools build](https://github.com/K11MCH1/AdrenoToolsDrivers).
 - [libadrenotools](https://github.com/bylaws/libadrenotools) by bylaws, which loads that driver in an app.
 - [SDL3](https://github.com/libsdl-org/SDL) for the Android activity, input and audio.
+- [Special Elite](https://fonts.google.com/specimen/Special+Elite) by Astigmatic (Apache-2.0), the typewriter face of the
+  icon and the second screen.
 - [LibertyRecompAndroid](https://github.com/vaduur/LibertyRecompAndroid), whose GTA IV port showed the way for Turnip on
   Android handhelds.
 

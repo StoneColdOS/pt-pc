@@ -23,6 +23,10 @@ std::filesystem::path LogDir();
 /* The scene's render size against the screen: 0.667 unless LogDir()/render_scale.txt holds another (0.25 to 1). */
 float RenderScale();
 
+/* The second screen of a dual-screen handheld (AYN Thor and others; android/.../SecondScreen.java): the loop the player is on
+   and the subtitle line playing now (empty for none), sent on only when one of them changes. Does nothing without one. */
+void UpdateSecondScreen(int loop, const std::string& line);
+
 /* Writes the signal, the fault address and a backtrace (library + offset per frame) to `path` when the game crashes. */
 void InstallCrashLog(const std::filesystem::path& path);
 

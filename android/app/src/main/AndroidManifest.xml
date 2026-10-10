@@ -49,5 +49,12 @@
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
         </activity>
+        <!-- the bottom screen's clock where a Presentation is refused (SecondScreen.java) -->
+        <activity android:name=".SecondScreenActivity"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.ptport.app.secondscreen"
+            android:resizeableActivity="true"
+            android:exported="false" />
     </application>
 </manifest>

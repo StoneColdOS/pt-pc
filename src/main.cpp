@@ -4285,6 +4285,13 @@ int RunGame(App& app, pt::Vfs& vfs) {
             }
             const auto tick_t2 = std::chrono::steady_clock::now();
             ui.Update(theater ? theater->theater->Sandbox() : game, state, step);
+#ifdef __ANDROID__
+            if (!theater) {
+                // the dual-screen handheld's bottom screen: the loop and the subtitle line now (sent only on a change)
+                pt::game::SubtitleView line;
+                pt::android::UpdateSecondScreen(game.Floor().Index(), ui.CurrentSubtitle(line) ? line.text : std::string());
+            }
+#endif
             const auto tick_t3 = std::chrono::steady_clock::now();
             if (options.audio_offline && sound.Ready() && !device_periods) {
                 render_offline(static_cast<uint32_t>(48000.0f * step + 0.5f));

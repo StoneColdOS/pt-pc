@@ -25,6 +25,15 @@ output matches the desktop installer byte for byte.
 - `Download/PT-logs/driver.txt`: the Vulkan driver. `turnip` (default, the bundled Mesa Turnip), `system` (the device's
   own Qualcomm driver), or the file name of another driver's `.so` (from an AdrenoTools driver zip) put in the same folder.
 
+## Second screen
+
+On a dual-screen handheld (AYN Thor and the like) the bottom screen shows a frozen 23:59 clock with the loop the player is
+on, and the subtitle line playing now (the radio included) with the one before it, faded, whether or not subtitles are on
+in the game. It is drawn with Android's Canvas (`SecondScreen.java`), not the game's GPU. `second_screen.txt` in
+`Download/PT-logs` (or `Android/data/com.ptport.app/files/`) picks the look: `subtitles` (default), `clock`, `dim` or `off`.
+The game sends the loop and the line through `UpdateSecondScreen` (`src/engine/platform/android.cpp`). The typewriter face
+is Special Elite (Apache-2.0, `third_party/second_screen_notices/`).
+
 ## Performance
 
 On the AYN Thor (Snapdragon 8 Gen 2, Adreno 740) at the default render scale the game holds about 60 fps in the start room
