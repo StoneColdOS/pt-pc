@@ -19,7 +19,7 @@ please support the original project ([Patreon](https://patreon.com/loreanxavier)
 | **GPU** | Qualcomm **Adreno 6xx or 7xx** (Snapdragon). Tested on the Adreno 740 (Snapdragon 8 Gen 2) only. |
 | **Android** | 10 or newer, 64-bit |
 | **Not supported** | Mali, Immortalis, Samsung Xclipse, PowerVR, Google Tensor, MediaTek. The game needs a texture format those GPUs lack. |
-| **Controller** | A built-in or connected gamepad. There are no touch controls. |
+| **Controller** | A built-in or connected gamepad, or the on-screen touch controls. |
 
 On the AYN Thor it runs at about 60 fps in the start room and roughly 25 to 35 fps in the heavier later loops.
 
@@ -45,7 +45,11 @@ folder (loose or in a `CUSA01127` folder), and allow **All files access** when a
 
 ## Controls
 
-The Xbox-layout controls of the PS4 original. Near the end the game asks you to say a name: say it out loud and the game
+**Touch controls:** without a controller, on-screen controls show up: drag on the left half to walk, on the right half to
+look, and the buttons for Use, Zoom, Back, Pause and Name (the voice part). They also appear whenever you touch the screen,
+and step aside as soon as a controller is used.
+
+**Controller:** The Xbox-layout controls of the PS4 original. Near the end the game asks you to say a name: say it out loud and the game
 hears it through the microphone, or **hold both triggers** instead.
 
 The app asks for the microphone once, before the first start. The speech recognizer (whisper.cpp) runs on the device and

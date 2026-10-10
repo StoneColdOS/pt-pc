@@ -18,6 +18,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <fstream>
 #include <sstream>
@@ -371,6 +372,63 @@ PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name) {
     return proc;
 }
 
+namespace {
+
+// what the overlay sent last (UI thread), applied on the game thread
+std::atomic<uint32_t> g_touch_buttons{0};
+std::atomic<uint64_t> g_touch_axes{0}; // left x, left y, right x, right y as four Sint16
+std::atomic<bool> g_touch_used{false};
+SDL_Joystick* g_touch_pad = nullptr;
+
+constexpr uint32_t kTouchA = 1, kTouchB = 2, kTouchStart = 4, kTouchZoom = 8, kTouchName = 16;
+
+int16_t Axis(uint64_t packed, int index) { return static_cast<int16_t>((packed >> (16 * index)) & 0xFFFF); }
+
+}  // namespace
+
+void PumpTouchControls() {
+    if (!g_touch_used.load(std::memory_order_relaxed)) return;
+    if (!g_touch_pad) {
+        SDL_VirtualJoystickDesc desc;
+        SDL_INIT_INTERFACE(&desc);
+        desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+        desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
+        desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+        desc.name = "Touch controls";
+        const SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
+        if (!id || !(g_touch_pad = SDL_OpenJoystick(id))) {
+            LogError("android: touch controls: no virtual gamepad ({})", SDL_GetError());
+            g_touch_used = false;
+            return;
+        }
+        LogInfo("android: touch controls attached as virtual gamepad {}", id);
+    }
+    const uint64_t axes = g_touch_axes.load(std::memory_order_relaxed);
+    const uint32_t buttons = g_touch_buttons.load(std::memory_order_relaxed);
+    SDL_SetJoystickVirtualAxis(g_touch_pad, SDL_GAMEPAD_AXIS_LEFTX, Axis(axes, 0));
+    SDL_SetJoystickVirtualAxis(g_touch_pad, SDL_GAMEPAD_AXIS_LEFTY, Axis(axes, 1));
+    SDL_SetJoystickVirtualAxis(g_touch_pad, SDL_GAMEPAD_AXIS_RIGHTX, Axis(axes, 2));
+    SDL_SetJoystickVirtualAxis(g_touch_pad, SDL_GAMEPAD_AXIS_RIGHTY, Axis(axes, 3));
+    const int16_t trigger = (buttons & kTouchName) ? 32767 : -32768;
+    SDL_SetJoystickVirtualAxis(g_touch_pad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, trigger);
+    SDL_SetJoystickVirtualAxis(g_touch_pad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, trigger);
+    SDL_SetJoystickVirtualButton(g_touch_pad, SDL_GAMEPAD_BUTTON_SOUTH, (buttons & kTouchA) != 0);
+    SDL_SetJoystickVirtualButton(g_touch_pad, SDL_GAMEPAD_BUTTON_EAST, (buttons & kTouchB) != 0);
+    SDL_SetJoystickVirtualButton(g_touch_pad, SDL_GAMEPAD_BUTTON_START, (buttons & kTouchStart) != 0);
+    SDL_SetJoystickVirtualButton(g_touch_pad, SDL_GAMEPAD_BUTTON_RIGHT_STICK, (buttons & kTouchZoom) != 0);
+}
+
 }  // namespace pt::android
+
+extern "C" JNIEXPORT void JNICALL Java_com_ptport_app_TouchControls_nativeState(JNIEnv*, jclass, jfloat lx, jfloat ly, jfloat rx,
+                                                                                 jfloat ry, jint buttons) {
+    auto to16 = [](float v) {
+        return static_cast<uint64_t>(static_cast<uint16_t>(static_cast<int16_t>(std::clamp(v, -1.0f, 1.0f) * 32767.0f)));
+    };
+    pt::android::g_touch_axes.store(to16(lx) | (to16(ly) << 16) | (to16(rx) << 32) | (to16(ry) << 48), std::memory_order_relaxed);
+    pt::android::g_touch_buttons.store(static_cast<uint32_t>(buttons), std::memory_order_relaxed);
+    pt::android::g_touch_used.store(true, std::memory_order_relaxed);
+}
+
 
 #endif

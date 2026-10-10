@@ -1,6 +1,9 @@
 package com.ptport.app;
 
 import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.view.ViewGroup;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -12,6 +15,7 @@ import org.libsdl.app.SDLActivity;
    loaded here: libadrenotools opens them itself when the game starts Vulkan (src/engine/platform/android.cpp). */
 public class PTActivity extends SDLActivity {
     private SecondScreen secondScreen;
+    private TouchControls touchControls;
 
     // from the game (src/engine/platform/android.cpp UpdateSecondScreen): the loop and the subtitle line, UTF-8
     @SuppressWarnings("unused")
@@ -45,6 +49,31 @@ public class PTActivity extends SDLActivity {
         installJavaCrashLog();
         super.onCreate(savedInstanceState);
         secondScreen = new SecondScreen(this);
+        // the on-screen controls over the game (TouchControls.java)
+        touchControls = new TouchControls(this);
+        addContentView(touchControls, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    // a real controller in use puts the touch controls away (a touch brings them back); the event goes on to the game
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (touchControls != null && TouchControls.isController(event.getSource())) touchControls.controllerUsed();
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        // a stick or trigger pushed past half, not the small drift a resting stick reports
+        if (touchControls != null && TouchControls.isController(event.getSource()) && event.getAction() == MotionEvent.ACTION_MOVE) {
+            for (int axis : new int[] {MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ,
+                     MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y, MotionEvent.AXIS_LTRIGGER, MotionEvent.AXIS_RTRIGGER}) {
+                if (Math.abs(event.getAxisValue(axis)) > 0.5f) {
+                    touchControls.controllerUsed();
+                    break;
+                }
+            }
+        }
+        return super.dispatchGenericMotionEvent(event);
     }
 
     // shown while the game is visible (start/stop, not resume/pause: a second-display activity can pause this one without

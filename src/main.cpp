@@ -3303,6 +3303,9 @@ bool PumpEvents(App& app, pt::InputDevice* input, bool& running, pt::KeyPressLat
     if (!app.window) {
         return true;
     }
+#ifdef __ANDROID__
+    pt::android::PumpTouchControls();
+#endif
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);

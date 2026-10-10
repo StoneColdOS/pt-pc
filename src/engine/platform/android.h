@@ -46,6 +46,11 @@ bool UnpackBundledAssets();
    the system loader; `name` says which one was taken. */
 PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name);
 
+/* The on-screen touch controls (android/.../TouchControls.java) as a virtual SDL gamepad, which the game reads like any
+   other pad: attached on the first touch, its sticks and buttons set from what the overlay last sent. Called once a frame
+   before the events are pumped. */
+void PumpTouchControls();
+
 }  // namespace pt::android
 
 #endif
