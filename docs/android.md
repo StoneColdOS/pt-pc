@@ -42,7 +42,11 @@ and 45-60 in the hallway.
 
 ## Controls
 
-A built-in or connected gamepad works as the PS4 pad. The voice part (saying "Jack") is done by holding both triggers.
+A built-in or connected gamepad works as the PS4 pad. The voice part (saying "Jack") goes through the microphone, as on PC: whisper.cpp and its
+CPU backends (libwhisper.so, libggml*.so, one libggml-cpu-*.so per ARM level ggml builds for Android) are in the APK's lib
+folder, where VoiceRecognizer finds them next to libmain.so, and the base.en and Silero VAD models are assets unpacked into
+the app's files (voice/). The small.en second opinion stays out of the APK (180 MB). SetupActivity asks for RECORD_AUDIO
+once before the first start; holding both triggers still works either way.
 
 ## Known gaps
 

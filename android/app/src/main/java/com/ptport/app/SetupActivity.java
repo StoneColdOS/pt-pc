@@ -1,7 +1,10 @@
 package com.ptport.app;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -33,6 +36,7 @@ import java.io.File;
    Download instead, which needs All files access. Everything is reachable with a gamepad: the d-pad moves, A presses. */
 public class SetupActivity extends Activity {
     private static final int PICK_PKG = 1;
+    private static final int ASK_MICROPHONE = 2;
     private static final long NEEDED_BYTES = 1_400_000_000L;
     private static final String[] SHARED_GAME_DIRS = {
         "/storage/emulated/0/Download/CUSA01127", "/storage/emulated/0/Download/PT", "/storage/emulated/0/Download",
@@ -49,11 +53,10 @@ public class SetupActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        if (gameInstalled()) {
-            startGame();
+        if (gameInstalled() && !shouldAskMicrophone()) {
+            launchGame();
             return;
         }
-        System.loadLibrary("ptsetup");
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.rgb(8, 8, 9));
         ScrollView scroll = new ScrollView(this);
@@ -67,6 +70,11 @@ public class SetupActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER_HORIZONTAL);
         root.addView(scroll, lp);
         setContentView(root);
+        if (gameInstalled()) {
+            showMicrophone();
+            return;
+        }
+        System.loadLibrary("ptsetup");
         showWelcome();
     }
 
@@ -154,6 +162,41 @@ public class SetupActivity extends Activity {
             startGame();
         });
         start.requestFocus();
+    }
+
+    // asked once, before the first game start: the ending listens for a word. The game works without it (both triggers).
+    private void showMicrophone() {
+        panel.removeAllViews();
+        title("Microphone");
+        text("Near the end, P.T. asks you to say a name out loud. The game can listen for it through the microphone.\n\n"
+                + "It only listens in that last part, the words are recognized on this device, and nothing is recorded or "
+                + "sent anywhere (the app has no internet access). If you'd rather not, holding both triggers says it for you.");
+        Button allow = button("Allow the microphone", v -> {
+            markMicrophoneAsked();
+            requestPermissions(new String[] {Manifest.permission.RECORD_AUDIO}, ASK_MICROPHONE);
+        });
+        button("Not now", v -> {
+            markMicrophoneAsked();
+            launchGame();
+        });
+        allow.requestFocus();
+    }
+
+    private boolean shouldAskMicrophone() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) return false;
+        return !getSharedPreferences("setup", MODE_PRIVATE).getBoolean("asked_microphone", false);
+    }
+
+    private void markMicrophoneAsked() {
+        SharedPreferences.Editor editor = getSharedPreferences("setup", MODE_PRIVATE).edit();
+        editor.putBoolean("asked_microphone", true);
+        editor.apply();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == ASK_MICROPHONE) launchGame();
     }
 
     // ---- actions
@@ -276,6 +319,14 @@ public class SetupActivity extends Activity {
     }
 
     private void startGame() {
+        if (shouldAskMicrophone()) {
+            showMicrophone();
+            return;
+        }
+        launchGame();
+    }
+
+    private void launchGame() {
         startActivity(new Intent(this, PTActivity.class));
         finish();
     }

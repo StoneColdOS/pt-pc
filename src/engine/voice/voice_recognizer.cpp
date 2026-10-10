@@ -156,6 +156,18 @@ std::string LoadError() {
 
 std::string LibraryName(const char* name) { return std::string(kLibraryPrefix) + name + kLibraryExtension; }
 
+// where libwhisper and libggml* are: next to the models, except on Android, where the package manager unpacks them into
+// the app's lib folder (next to libmain.so) and the models come out of the APK's assets into the app's files
+std::filesystem::path RuntimeDir(const std::filesystem::path& model_dir) {
+#ifdef __ANDROID__
+    Dl_info info{};
+    if (dladdr(reinterpret_cast<const void*>(&RuntimeDir), &info) && info.dli_fname) {
+        return std::filesystem::path(info.dli_fname).parent_path();
+    }
+#endif
+    return model_dir;
+}
+
 bool LoadRuntime(const std::filesystem::path& dir, VoiceRecognizer::Failure& failure) {
     std::lock_guard lock(g_api_mutex);
     if (g_api.ready) return true;
@@ -194,8 +206,10 @@ bool LoadRuntime(const std::filesystem::path& dir, VoiceRecognizer::Failure& fai
     for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
         const std::string name = os::PathToUtf8(entry.path().filename());
         const std::string prefix = std::string(kLibraryPrefix) + "ggml-cpu-";
-        if (!name.starts_with(prefix) || entry.path().extension() != kModuleExtension) continue;
-        const std::string variant = name.substr(prefix.size(), name.size() - prefix.size() - std::strlen(kModuleExtension));
+        // a build without CPU variants has the one libggml-cpu.so
+        const bool plain = name == std::string(kLibraryPrefix) + "ggml-cpu" + kModuleExtension;
+        if ((!plain && !name.starts_with(prefix)) || entry.path().extension() != kModuleExtension) continue;
+        const std::string variant = plain ? std::string("cpu") : name.substr(prefix.size(), name.size() - prefix.size() - std::strlen(kModuleExtension));
         if (forced && variant != forced) continue;
         ++candidates;
         const Library module = LoadNear(entry.path());
@@ -442,8 +456,9 @@ bool VoiceRecognizer::Init(const std::filesystem::path& model_dir, const std::st
     if (const char* prompt = std::getenv("PT_VOICE_PROMPT")) settings.prompt = prompt;
     if (const char* model = std::getenv("PT_VOICE_RESCUE_MODEL")) settings.rescue_model = model;
     for (const std::string& name : {WhisperModelName(), std::string(kVadModel), LibraryName("whisper")}) {
-        if (!std::filesystem::is_regular_file(model_dir / name)) {
-            LogError("voice: {} is missing from {}", name, os::PathToUtf8(model_dir));
+        const std::filesystem::path dir = name == LibraryName("whisper") ? RuntimeDir(model_dir) : model_dir;
+        if (!std::filesystem::is_regular_file(dir / name)) {
+            LogError("voice: {} is missing from {}", name, os::PathToUtf8(dir));
             failure_ = Failure::Files;
             state_ = State::Failed;
             return false;
@@ -549,7 +564,7 @@ std::vector<VoiceRecognizer::Result> VoiceRecognizer::TakeResults() {
 bool VoiceRecognizer::LoadModels(const std::filesystem::path& model_dir) {
     const auto started = std::chrono::steady_clock::now();
     Failure failure = Failure::None;
-    if (!LoadRuntime(model_dir, failure)) {
+    if (!LoadRuntime(RuntimeDir(model_dir), failure)) {
         failure_ = failure;
         return false;
     }

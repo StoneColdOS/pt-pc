@@ -52,10 +52,7 @@ FetchContent_Declare(whisper URL https://github.com/ggml-org/whisper.cpp/archive
   URL_HASH SHA256=57e280cee375ab02425b806ad5146b99f6eb9357e3c2b31357c8a6af2e2e44ae)
 FetchContent_Populate(whisper)
 set(PT_VOICE_DIR ${CMAKE_BINARY_DIR}/voice)
-if(ANDROID)
-  # Android: no speech recognizer yet; the voice part takes the controller's trigger chord (both triggers) or the key instead
-  add_custom_target(pt_voice_runtime)
-else()
+# Android builds it too (docs/android.md): the libraries go into the APK's lib folder, the models into its assets
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 set(GGML_BACKEND_DL ON CACHE BOOL "" FORCE)
 set(GGML_CPU_ALL_VARIANTS ON CACHE BOOL "" FORCE)
@@ -76,6 +73,12 @@ add_subdirectory(${whisper_SOURCE_DIR} ${whisper_BINARY_DIR} EXCLUDE_FROM_ALL)
 unset(BUILD_SHARED_LIBS)
 add_custom_target(pt_voice_runtime)
 add_dependencies(pt_voice_runtime whisper)
+if(ANDROID)
+  # each library carries its own static C++ runtime (c++_static): kept private, as on Linux (CMakeLists.txt)
+  foreach(lib whisper ggml ggml-base)
+    target_link_options(${lib} PRIVATE -Wl,--exclude-libs,ALL -Wl,-Bsymbolic)
+  endforeach()
+endif()
 # whisper.cpp names its own output folder (bin); the DLLs go to voice/ next to the models
 foreach(lib whisper ggml ggml-base)
   set_target_properties(${lib} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PT_VOICE_DIR} LIBRARY_OUTPUT_DIRECTORY ${PT_VOICE_DIR})
@@ -103,9 +106,13 @@ set(PT_GGML_VARIANT_FLAGS
   "alderlake|-msse4.2 -mavx -mavx2 -mfma -mf16c -mbmi2 -mavxvnni")
 # the Apple silicon variants (apple_m1, apple_m2_m3, apple_m4) are MODULE libraries, libggml-cpu-apple_m4.so even on macOS
 foreach(variant x64 sse42 sandybridge ivybridge piledriver haswell skylakex cannonlake cascadelake icelake cooperlake zen4 alderlake sapphirerapids
-    apple_m1 apple_m2_m3 apple_m4)
+    apple_m1 apple_m2_m3 apple_m4 android_armv8.0_1 android_armv8.2_1 android_armv8.2_2 android_armv8.6_1 android_armv9.0_1 android_armv9.2_1
+    android_armv9.2_2)
   if(TARGET ggml-cpu-${variant})
     add_dependencies(pt_voice_runtime ggml-cpu-${variant})
+    if(ANDROID)
+      target_link_options(ggml-cpu-${variant} PRIVATE -Wl,--exclude-libs,ALL -Wl,-Bsymbolic)
+    endif()
     set_target_properties(ggml-cpu-${variant} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PT_VOICE_DIR} LIBRARY_OUTPUT_DIRECTORY ${PT_VOICE_DIR})
     if(APPLE)
       # dyld finds libggml-base.dylib through the variant's own rpath, not through the copy already loaded
@@ -113,6 +120,11 @@ foreach(variant x64 sse42 sandybridge ivybridge piledriver haswell skylakex cann
     endif()
   endif()
 endforeach()
+if(TARGET ggml-cpu)
+  # one CPU backend without variants (libggml-cpu.so), which VoiceRecognizer also takes
+  add_dependencies(pt_voice_runtime ggml-cpu)
+  set_target_properties(ggml-cpu PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PT_VOICE_DIR} LIBRARY_OUTPUT_DIRECTORY ${PT_VOICE_DIR})
+endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
   # the SSE and AVX paths of arch/x86/quants.c pass block pointers as char pointers, an error by default in clang 20
   foreach(variant x64 sse42 sandybridge haswell skylakex cannonlake cascadelake icelake alderlake)
@@ -136,10 +148,15 @@ set(PT_WHISPER_INCLUDE_DIRS ${whisper_SOURCE_DIR}/include ${whisper_SOURCE_DIR}/
 # The models next to pt.exe in voice/: Whisper base.en (OpenAI, MIT) quantized to q5_1 by the whisper.cpp project, the
 # larger small.en q5_1 as the second opinion for short utterances the first model did not take for the word, and the
 # Silero VAD v6.2.0 (MIT) in ggml form; the notices go with them
-foreach(entry
+set(PT_VOICE_MODELS
     "ggml-base.en-q5_1.bin|https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-q5_1.bin|4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f"
     "ggml-small.en-q5_1.bin|https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q5_1.bin|bfdff4894dcb76bbf647d56263ea2a96645423f1669176f4844a1bf8e478ad30"
     "ggml-silero-v6.2.0.bin|https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin|2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987")
+if(ANDROID)
+  # the APK carries base.en alone (the second opinion would add 180 MB); the recognizer works without it
+  list(FILTER PT_VOICE_MODELS EXCLUDE REGEX "^ggml-small")
+endif()
+foreach(entry ${PT_VOICE_MODELS})
   string(REPLACE "|" ";" parts "${entry}")
   list(GET parts 0 name)
   list(GET parts 1 url)
@@ -164,7 +181,6 @@ file(COPY ${CMAKE_SOURCE_DIR}/third_party/voice_notices/ DESTINATION ${PT_VOICE_
 foreach(stale cmudict-en-us.dict en-us vosk)
   file(REMOVE_RECURSE ${PT_VOICE_DIR}/${stale})
 endforeach()
-endif() # NOT ANDROID (the voice runtime)
 set(PT_WHISPER_INCLUDE_DIRS ${whisper_SOURCE_DIR}/include ${whisper_SOURCE_DIR}/ggml/include)
 FetchContent_Populate(volk)
 FetchContent_Populate(vma)

@@ -93,6 +93,17 @@
 #include "game/vr_play.h"
 #include "engine/xr/xr_host.h"
 
+
+// the speech models: next to the game, or on Android unpacked from the APK's assets into the app's files (the libraries
+// themselves are in the app's lib folder, VoiceRecognizer finds them there)
+static std::filesystem::path VoiceModelDir() {
+#ifdef __ANDROID__
+    return pt::android::DataDir() / "voice";
+#else
+    return pt::ResourceDir("voice", PT_VOICE_MODEL_DIR);
+#endif
+}
+
 namespace {
 
 #ifdef PT_RELEASE_LOCKS
@@ -534,7 +545,7 @@ int RunVoiceTest(const std::filesystem::path& input) {
         files.push_back(input);
     }
     pt::VoiceRecognizer recognizer;
-    if (!recognizer.Init(pt::ResourceDir("voice", PT_VOICE_MODEL_DIR), "jack")) {
+    if (!recognizer.Init(VoiceModelDir(), "jack")) {
         return 1;
     }
     recognizer.Drain();
@@ -978,7 +989,7 @@ int RunVoiceListen(float seconds, const std::string& device) {
         return 1;
     }
     pt::VoiceRecognizer recognizer;
-    if (!recognizer.Init(pt::ResourceDir("voice", PT_VOICE_MODEL_DIR), "jack")) return 1;
+    if (!recognizer.Init(VoiceModelDir(), "jack")) return 1;
     pt::Microphone microphone;
     if (!microphone.Open(pt::VoiceRecognizer::kSampleRate, device)) {
         std::printf("No microphone could be opened (see pt.log).\n");
@@ -4472,7 +4483,7 @@ int RunGame(App& app, pt::Vfs& vfs) {
         if ((app.window || voice_file) && (game.VoiceListening() || app.microphone_test)) {
             if (!recognizer) {
                 recognizer = std::make_unique<pt::VoiceRecognizer>();
-                recognizer->Init(pt::ResourceDir("voice", PT_VOICE_MODEL_DIR), "jack");
+                recognizer->Init(VoiceModelDir(), "jack");
             }
         } else if (recognizer) {
             microphone.Close();

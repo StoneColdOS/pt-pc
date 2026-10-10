@@ -45,8 +45,12 @@ folder (loose or in a `CUSA01127` folder), and allow **All files access** when a
 
 ## Controls
 
-The Xbox-layout controls of the PS4 original. The part where you say the name is done by **holding both triggers**
-(no microphone support yet).
+The Xbox-layout controls of the PS4 original. Near the end the game asks you to say a name: say it out loud and the game
+hears it through the microphone, or **hold both triggers** instead.
+
+The app asks for the microphone once, before the first start. The speech recognizer (whisper.cpp) runs on the device and
+only listens in that last part; nothing is recorded or sent anywhere, and the app has no internet permission. You can test
+the microphone in the game's settings.
 
 ## When something goes wrong
 
@@ -68,7 +72,7 @@ main screen skips on repeat loops, with *static* marking where the voice drops o
 
 ## Known issues
 
-- No microphone for the voice part (use the triggers).
+- The speech recognizer is new on Android: if it doesn't hear you, hold both triggers.
 - The PC extras that need a desktop (upscalers, ray tracing, VR, enhanced textures, loop previews) are off.
 - A phone hooked up to a TV or monitor (USB-C to HDMI, or some casting setups) counts as a second screen, so the clock
   may show up on the TV while the game stays on the phone. Turn it off under **Display > Second screen > Off**.
@@ -86,6 +90,8 @@ in [docs/android.md](docs/android.md).
   [KIMCHI AdrenoTools build](https://github.com/K11MCH1/AdrenoToolsDrivers).
 - [libadrenotools](https://github.com/bylaws/libadrenotools) by bylaws, which loads that driver in an app.
 - [SDL3](https://github.com/libsdl-org/SDL) for the Android activity, input and audio.
+- [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT) with OpenAI's Whisper base.en model (MIT) and the Silero VAD
+  (MIT), which hear the name at the end.
 - [Special Elite](https://fonts.google.com/specimen/Special+Elite) by Astigmatic (Apache-2.0), the typewriter face of the
   icon and the second screen.
 - [LibertyRecompAndroid](https://github.com/vaduur/LibertyRecompAndroid), whose GTA IV port showed the way for Turnip on

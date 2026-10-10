@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Builds the Android native part (docs/android.md) and lays it out for Gradle:
 #   android/app/libs/arm64-v8a/  libmain.so, libSDL3.so, libadrenotools' hooks, the Turnip driver
-#   android/app/assets/          the compiled shaders, the fonts and pt_assets.txt (what the game unpacks on first start)
+#   android/app/libs/arm64-v8a/  also whisper.cpp's libwhisper.so, libggml*.so (the speech recognizer for the ending)
+#   android/app/assets/          the compiled shaders, the fonts, the speech models and pt_assets.txt (what the game unpacks
+#                                on first start)
 # Needs ANDROID_NDK_HOME (NDK r27 or newer), cmake 3.28+, ninja and glslc on the PATH.
 set -euo pipefail
 
@@ -25,11 +27,11 @@ cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DVulkan_GLSLC_EXECUTABLE="$GLSLC" \
   -DPT_UPSCALERS=OFF -DPT_OPENXR=OFF
 # -k 0: every compile error of a run, not just the first
-cmake --build "$BUILD" --target pt pt_shaders ptsetup -- -k 0
+cmake --build "$BUILD" --target pt pt_shaders ptsetup pt_voice_runtime -- -k 0
 
 LIBS="$APP/libs/arm64-v8a"
 rm -rf "$LIBS" "$APP/assets"
-mkdir -p "$LIBS" "$APP/assets/shaders" "$APP/assets/fonts"
+mkdir -p "$LIBS" "$APP/assets/shaders" "$APP/assets/fonts" "$APP/assets/voice/licenses"
 
 cp "$BUILD/libmain.so" "$LIBS/"
 for lib in libSDL3.so libptsetup.so libmain_hook.so libfile_redirect_hook.so libgsl_alloc_hook.so libhook_impl.so; do
@@ -40,6 +42,16 @@ for lib in libSDL3.so libptsetup.so libmain_hook.so libfile_redirect_hook.so lib
   fi
   cp "$found" "$LIBS/"
 done
+# the speech recognizer (src/engine/voice): whisper, ggml and ggml's CPU code, one library per ARM level it was built for
+for lib in libwhisper.so libggml.so libggml-base.so; do
+  cp "$BUILD/voice/$lib" "$LIBS/"
+done
+cpu_libs=$(find "$BUILD/voice" -maxdepth 1 -name 'libggml-cpu*.so' | wc -l)
+if [ "$cpu_libs" -eq 0 ]; then
+  echo "no libggml-cpu*.so in $BUILD/voice" >&2
+  exit 1
+fi
+cp "$BUILD"/voice/libggml-cpu*.so "$LIBS/"
 "$NDK"/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-unneeded "$LIBS"/*.so
 
 TURNIP_ZIP="$BUILD/turnip.zip"
@@ -53,11 +65,13 @@ unzip -p "$TURNIP_ZIP" "$driver" > "$LIBS/libvulkan_turnip.so"
 
 cp "$BUILD"/shaders/*.spv "$APP/assets/shaders/"
 cp "$ROOT"/assets/fonts/*.ttf "$ROOT"/assets/fonts/OFL-*.txt "$APP/assets/fonts/"
+cp "$BUILD/voice/ggml-base.en-q5_1.bin" "$BUILD/voice/ggml-silero-v6.2.0.bin" "$APP/assets/voice/"
+cp "$BUILD"/voice/licenses/* "$APP/assets/voice/licenses/"
 (
   cd "$APP/assets"
   {
     echo "# $(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo local) $(date -u +%Y%m%dT%H%M%SZ)"
-    find shaders fonts -type f | sort
+    find shaders fonts voice -type f | sort
   } > pt_assets.txt
 )
 echo "native build laid out in $APP"
