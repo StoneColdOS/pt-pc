@@ -25,21 +25,23 @@ On the AYN Thor it runs at about 60 fps in the start room and roughly 25 to 35 f
 
 ## What you need
 
-Your own dump of P.T. (**CUSA01127**, the US release), or rather three files from it:
+Your own copy of P.T. (**CUSA01127**, the US release; the European and Japanese releases should work too) as one of:
 
-- `chunk1.psarc`
-- `texture.qar`
-- `pathid_list_ps4.bin`
+- **a fake PKG (`.pkg`) made from your dump.** The app takes the game files out of it by itself. If it came zipped
+  (`.rar`, `.zip`, `.7z`), unpack it first with a file manager such as ZArchiver.
+- **the three files from a dump folder:** `chunk1.psarc`, `texture.qar` and `pathid_list_ps4.bin`.
 
-If you have a fake PKG made from your dump rather than a folder, the original port's PC installer (Windows or Linux) can
-pull these three files out of it. A store PKG will not work.
+A store (PlayStation Store) PKG will not work: it is encrypted for the console that owns it, and this app does not touch that.
 
 ## Installing
 
 1. Download the latest `PT-Android-*.apk` from [Releases](../../releases) and install it.
-2. Copy the three game files into your device's **Download** folder (loose, or in a `CUSA01127` folder inside it).
-   LocalSend, a USB cable or any file manager works.
-3. Start P.T. When Android asks, allow it **All files access**, which it needs to read the Download folder. Then start it again.
+2. Start P.T. and choose **Choose your P.T. .pkg**, then pick your package in Android's file picker. Setting up takes a
+   minute or two and needs about 1.4 GB free. Afterwards you can let the app delete the `.pkg` to get that space back.
+3. That's it: from then on the game starts straight away.
+
+If you have the three extracted files instead, choose **I already have the extracted files**, copy them into your Download
+folder (loose or in a `CUSA01127` folder), and allow **All files access** when asked.
 
 ## Controls
 

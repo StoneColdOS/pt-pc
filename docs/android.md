@@ -5,14 +5,15 @@ port, built as `libmain.so` for SDL's Android activity, with Mesa Turnip bundled
 
 ## Installing
 
-1. Download `PT-Android.apk` from the `android-latest` release of this fork and install it (allow installs from your browser
-   or file manager when Android asks).
-2. Put `chunk1.psarc`, `texture.qar` and `pathid_list_ps4.bin` from your own CUSA01127 dump in the device's `Download`
-   folder, loose or in a `CUSA01127` folder. LocalSend's default location works.
-3. Start P.T. When Android asks, allow it "All files access" (needed to read the Download folder), then start P.T. again.
+1. Download `PT-Android.apk` from the `android-latest` release of this fork and install it.
+2. Start P.T. The setup screen (`SetupActivity`) asks for the player's P.T. fake PKG through Android's file picker and takes
+   the three archives out of it into `Android/data/com.ptport.app/files/game/CUSA01127/` with `libptsetup.so`
+   (`src/pkginstall`, the C++ counterpart of the desktop installers' extraction helper). No storage permission is needed.
+3. Or: `chunk1.psarc`, `texture.qar` and `pathid_list_ps4.bin` in the Download folder (loose or in `CUSA01127`), with
+   "All files access" allowed.
 
-The app's own folder, `Android/data/com.ptport.app/files/game/CUSA01127/`, also works and needs no permission, but most
-file managers cannot write there on Android 11 and newer.
+`tools/pkg_extract_cli.cpp` runs the same extractor from a desktop terminal for testing; on the CUSA01127 fake PKG its
+output matches the desktop installer byte for byte.
 
 ## Files
 
@@ -36,7 +37,6 @@ A built-in or connected gamepad works as the PS4 pad. The voice part (saying "Ja
 ## Known gaps
 
 - No speech recognition yet; use the trigger chord.
-- Switching away from the app while playing may lose the window and crash; save first.
 - The PC upscalers, ray tracing, VR, enhanced textures and loop previews are not available.
 
 ## Releases

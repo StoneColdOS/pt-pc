@@ -170,6 +170,27 @@ if(MSVC)
 endif()
 
 include(cmake/Upscalers.cmake)
+if(ANDROID)
+  # libptsetup.so: the setup screen's PKG extractor (src/pkginstall, android/.../SetupActivity.java), apart from the game.
+  # mbedtls (Apache-2.0) for SHA-256, HMAC, AES (CBC, XTS) and RSA; the release archive carries its generated sources.
+  set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+  set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+  set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
+  set(GEN_FILES OFF CACHE BOOL "" FORCE)
+  set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "" FORCE)
+  set(USE_STATIC_MBEDTLS_LIBRARY ON CACHE BOOL "" FORCE)
+  FetchContent_Declare(mbedtls URL https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.4/mbedtls-3.6.4.tar.bz2
+    URL_HASH SHA256=ec35b18a6c593cf98c3e30db8b98ff93e8940a8c4e690e66b41dfc011d678110)
+  FetchContent_GetProperties(mbedtls)
+  if(NOT mbedtls_POPULATED)
+    FetchContent_Populate(mbedtls)
+    add_subdirectory(${mbedtls_SOURCE_DIR} ${mbedtls_BINARY_DIR} EXCLUDE_FROM_ALL)
+  endif()
+  add_library(ptsetup SHARED src/pkginstall/pkg_extract.cpp src/pkginstall/android_jni.cpp)
+  target_include_directories(ptsetup PRIVATE src)
+  target_link_libraries(ptsetup PRIVATE mbedcrypto zlibstatic log)
+endif()
+
 if(NOT ANDROID)
   # the texture upscaler is a desktop program the game starts; Android cannot run it
   include(cmake/EnhancedTextures.cmake)

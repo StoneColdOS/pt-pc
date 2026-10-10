@@ -25,14 +25,14 @@ cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DVulkan_GLSLC_EXECUTABLE="$GLSLC" \
   -DPT_UPSCALERS=OFF -DPT_OPENXR=OFF
 # -k 0: every compile error of a run, not just the first
-cmake --build "$BUILD" --target pt pt_shaders -- -k 0
+cmake --build "$BUILD" --target pt pt_shaders ptsetup -- -k 0
 
 LIBS="$APP/libs/arm64-v8a"
 rm -rf "$LIBS" "$APP/assets"
 mkdir -p "$LIBS" "$APP/assets/shaders" "$APP/assets/fonts"
 
 cp "$BUILD/libmain.so" "$LIBS/"
-for lib in libSDL3.so libmain_hook.so libfile_redirect_hook.so libgsl_alloc_hook.so libhook_impl.so; do
+for lib in libSDL3.so libptsetup.so libmain_hook.so libfile_redirect_hook.so libgsl_alloc_hook.so libhook_impl.so; do
   found="$(find "$BUILD" -name "$lib" -type f | head -n1)"
   if [ -z "$found" ]; then
     echo "missing $lib in $BUILD" >&2
