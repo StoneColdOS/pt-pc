@@ -35,15 +35,31 @@ jobs:
           java-version: '17'
 
       - name: Native build
-        run: ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" tools/android/build_native.sh
+        run: |
+          set -o pipefail
+          ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" tools/android/build_native.sh 2>&1 | tee -a build.log
 
       - name: APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease -PptVersionCode=${{ github.run_number }} -PptVersionName=android-${{ github.run_number }}-$(git rev-parse --short HEAD)
+          set -o pipefail
+          ./gradlew --no-daemon assembleRelease -PptVersionCode=${{ github.run_number }} -PptVersionName=android-${{ github.run_number }}-$(git rev-parse --short HEAD) 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
           cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/PT-Android.apk"
           ls -la "$GITHUB_WORKSPACE/PT-Android.apk"
+
+      - name: Build log
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # the log as a release asset as well, readable without signing in to Actions
+          [ -f build.log ] || echo "no build log" > build.log
+          grep -nE "error|Error|FAILED|undefined reference|fatal" build.log | head -n 200 > build-errors.log || true
+          if ! gh release view android-logs >/dev/null 2>&1; then
+            gh release create android-logs --prerelease --title "Android build logs" --notes "Logs of the latest Android build." --target "$GITHUB_SHA"
+          fi
+          gh release upload android-logs build.log build-errors.log --clobber
 
       - uses: actions/upload-artifact@v4
         with:
