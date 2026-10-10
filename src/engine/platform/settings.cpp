@@ -101,6 +101,7 @@ bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out) {
     Read(v, "display.fps_limit", out.display.fps_limit);
     Read(v, "display.hdr", out.display.hdr);
     Read(v, "display.letterbox", out.display.letterbox);
+    Read(v, "display.second_screen", out.display.second_screen);
     Read(v, "input.mouse_sensitivity", out.input.mouse_sensitivity);
     Read(v, "input.gamepad_sensitivity", out.input.gamepad_sensitivity);
     Read(v, "input.gamepad_dead_zone", out.input.gamepad_dead_zone);
@@ -231,7 +232,9 @@ bool SaveAppSettings(const std::filesystem::path& path, const AppSettings& s) {
          << "fps_limit = " << s.display.fps_limit << "\n"
          << "hdr = " << (s.display.hdr ? 1 : 0) << "\n"
          << "; black bars over and under the picture in play and in the cutscenes, not in the original: 0 off, 1 2.39:1, 2 1.85:1\n"
-         << "letterbox = " << s.display.letterbox << "\n\n"
+         << "letterbox = " << s.display.letterbox << "\n"
+         << "; a dual-screen handheld's bottom screen (Android): 0 clock and subtitles, 1 clock, 2 dim clock, 3 off\n"
+         << "second_screen = " << s.display.second_screen << "\n\n"
          << "[input]\n"
          << "mouse_sensitivity = " << s.input.mouse_sensitivity << "\n"
          << "; gamepad turn speed after the original stick response, 1 keeps the original\n"

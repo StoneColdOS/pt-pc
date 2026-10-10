@@ -1933,6 +1933,14 @@ public:
         display.rows.push_back(Row(kHdr,"pc_hdr",OffOn(),s.display.hdr?1:0,"pc_note_hdr_restart"));
         display.rows.push_back(Row(kFocusPause, "pc_focus_pause", OffOn(), s.display.pause_on_focus_loss ? 1 : 0, "pc_note_focus_pause"));
         display.rows.push_back(Row(kFocusMute, "pc_focus_mute", OffOn(), s.display.mute_in_background ? 1 : 0, "pc_note_focus_mute"));
+#ifdef __ANDROID__
+        // only on a dual-screen handheld (AYN Thor and the like)
+        if (pt::android::HasSecondScreen()) {
+            display.rows.push_back(Row(kSecondScreen, "pc_second_screen",
+                                       {"pc_second_screen_subtitles", "pc_second_screen_clock", "pc_second_screen_dim", "pc_off"},
+                                       std::clamp(s.display.second_screen, 0, 3), "pc_note_second_screen"));
+        }
+#endif
         out.push_back(std::move(display));
 
         const pt::UpscaleSettings& u = app_.scene.upscale;
@@ -2235,6 +2243,12 @@ public:
             break;
         case kFocusMute:
             s.display.mute_in_background = value == 1;
+            break;
+        case kSecondScreen:
+            s.display.second_screen = std::clamp(value, 0, 3);
+#ifdef __ANDROID__
+            pt::android::SetSecondScreenMode(s.display.second_screen);
+#endif
             break;
         case kUpscaler: {
             const std::vector<pt::UpscalerKind> kinds = Upscalers(nullptr);
@@ -2682,6 +2696,7 @@ private:
         kLoopBrowser, kExtras, kFreecam, kPhotoMode, kStreetWalk, kStreetRestart, kStreetLeave, kLoopLock, kThirdPerson, kSpeedrun, kLiveSplit, kRunMenu, kRunReal, kRunGame, kRunBest,
         kArchive, kArchiveLock,
         kVr, kVrMode, kVrFlashlight, kVrTurn, kVrHeight, kVrWorldScale,
+        kSecondScreen,
         kLoopFirst = 1000,
         kRunSplitFirst = 3000,
         kModFirst = 2000,
@@ -5308,6 +5323,7 @@ int main(int argc, char** argv) {
         bool save_now = !settings_loaded;
 #ifdef __ANDROID__
         save_now = save_now || android_defaults_applied;
+        pt::android::SetSecondScreenMode(app.settings.display.second_screen);
 #endif
         if (save_now) {
             pt::SaveAppSettings(app.settings_path, app.settings);

@@ -29,9 +29,10 @@ output matches the desktop installer byte for byte.
 
 On a dual-screen handheld (AYN Thor and the like) the bottom screen shows a frozen 23:59 clock with the loop the player is
 on, and the subtitle line playing now (the radio included) with the one before it, faded, whether or not subtitles are on
-in the game. It is drawn with Android's Canvas (`SecondScreen.java`), not the game's GPU. `second_screen.txt` in
-`Download/PT-logs` (or `Android/data/com.ptport.app/files/`) picks the look: `subtitles` (default), `clock`, `dim` or `off`.
-The game sends the loop and the line through `UpdateSecondScreen` (`src/engine/platform/android.cpp`). The typewriter face
+in the game. It is drawn with Android's Canvas (`SecondScreen.java`), not the game's GPU. The game's settings page offers
+Display > Second screen (`display.second_screen` in pt.ini: 0 clock and subtitles, 1 clock, 2 dim clock, 3 off) only on a
+device with a second display. The game sends the setting, the loop and the line through `SetSecondScreenMode` and
+`UpdateSecondScreen` (`src/engine/platform/android.cpp`). The typewriter face
 is Special Elite (Apache-2.0, `third_party/second_screen_notices/`).
 
 ## Performance

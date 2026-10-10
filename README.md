@@ -62,8 +62,8 @@ Two optional files in that folder for tinkering:
 ## Dual-screen handhelds
 
 On an AYN Thor (or a similar handheld with a second screen) the bottom screen shows a frozen 23:59 clock with the loop
-you're on, and the radio and other subtitle lines as they play. Want it different? Put a file named `second_screen.txt`
-in `Download/PT-logs` containing `clock` (clock only), `dim` (a faint clock on black) or `off`.
+you're on, and the radio and other subtitle lines as they play. Change it in the game's settings under **Display >
+Second screen**: clock and subtitles, clock only, a dim clock, or off.
 
 ## Known issues
 

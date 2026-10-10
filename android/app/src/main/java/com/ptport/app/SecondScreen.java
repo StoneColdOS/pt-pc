@@ -28,9 +28,6 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.nio.charset.StandardCharsets;
 
 /* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen red digital clock with the loop the player is
@@ -38,13 +35,16 @@ import java.nio.charset.StandardCharsets;
    time is not touched. Shown as a Presentation on the second display (an activity on that display where the system refuses
    a Presentation); nothing happens on a device with one screen.
 
-   Download/PT-logs/second_screen.txt (or the app's own folder) picks the look: "subtitles" (the default), "clock", "dim" or
-   "off". The game sends the loop and the line through updateSecondScreen (src/engine/platform/android.cpp). */
+   The look is the game's Second screen setting (Settings > Display; display.second_screen in pt.ini), which the game sends
+   through setMode as soon as its settings are read, and again on every change: until then nothing is shown. The game sends
+   the loop and the line through update (src/engine/platform/android.cpp). */
 final class SecondScreen {
     private static final String TAG = "pt";
     private static final long PREVIOUS_LINE_MS = 20_000;
 
+    private static final String[] MODES = {"subtitles", "clock", "dim", "off"};
     private static SecondScreen instance;
+    private static int modeIndex = -1;
     private static int loop = 0;
     private static String line = "";
 
@@ -53,7 +53,7 @@ final class SecondScreen {
     private Presentation presentation;
     private boolean usingActivity;
     private ClockView view;
-    private String mode = "subtitles";
+    private String mode = "off";
     private final DisplayManager.DisplayListener listener = new DisplayManager.DisplayListener() {
         @Override public void onDisplayAdded(int displayId) { refresh(); }
         @Override public void onDisplayRemoved(int displayId) { refresh(); }
@@ -76,6 +76,29 @@ final class SecondScreen {
             SecondScreen screen = instance;
             if (screen != null && screen.view != null) screen.view.setState(loop, line);
         });
+    }
+
+    static void setMode(int index) {
+        final int value = Math.max(0, Math.min(MODES.length - 1, index));
+        new Handler(Looper.getMainLooper()).post(() -> {
+            modeIndex = value;
+            SecondScreen screen = instance;
+            if (screen == null) return;
+            String next = MODES[value];
+            boolean showing = screen.presentation != null || screen.usingActivity;
+            if (showing && !next.equals("off") && screen.view != null) {
+                screen.mode = next;
+                screen.view.setMode(next);
+            } else {
+                screen.refresh();
+            }
+        });
+    }
+
+    // any thread: whether there is a second display to draw on
+    static boolean available() {
+        SecondScreen screen = instance;
+        return screen != null && screen.findSecondDisplay() != null;
     }
 
     // the activity fallback hands its view in here
@@ -108,7 +131,7 @@ final class SecondScreen {
 
     private void refresh() {
         hide();
-        mode = readMode();
+        mode = modeIndex < 0 ? "off" : MODES[modeIndex];
         if (mode.equals("off")) return;
         Display display = findSecondDisplay();
         if (display == null) return;
@@ -162,24 +185,6 @@ final class SecondScreen {
             return d;
         }
         return null;
-    }
-
-    private String readMode() {
-        File[] candidates = {
-            new File("/storage/emulated/0/Download/PT-logs/second_screen.txt"),
-            new File(activity.getExternalFilesDir(null), "second_screen.txt"),
-        };
-        for (File f : candidates) {
-            try (BufferedReader in = new BufferedReader(new FileReader(f))) {
-                String value = in.readLine();
-                if (value != null) {
-                    value = value.trim().toLowerCase();
-                    if (value.equals("subtitles") || value.equals("clock") || value.equals("dim") || value.equals("off")) return value;
-                }
-            } catch (Exception ignored) {
-            }
-        }
-        return "subtitles";
     }
 
     private final class BottomScreen extends Presentation {

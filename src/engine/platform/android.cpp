@@ -141,6 +141,40 @@ float RenderScale() {
     return scale;
 }
 
+namespace {
+
+// a static method of the game's activity class (PTActivity), with the JNI env of this thread
+template <typename Call>
+bool CallActivityStatic(const char* name, const char* signature, Call&& call) {
+    auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
+    auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
+    if (!env || !activity) return false;
+    jclass cls = env->GetObjectClass(activity);
+    jmethodID method = env->GetStaticMethodID(cls, name, signature);
+    bool ok = false;
+    if (method) {
+        call(env, cls, method);
+        ok = !env->ExceptionCheck();
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(activity);
+    return ok;
+}
+
+}  // namespace
+
+void SetSecondScreenMode(int mode) {
+    CallActivityStatic("setSecondScreenMode", "(I)V",
+                       [&](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m, static_cast<jint>(mode)); });
+}
+
+bool HasSecondScreen() {
+    jboolean has = JNI_FALSE;
+    CallActivityStatic("hasSecondScreen", "()Z", [&](JNIEnv* env, jclass cls, jmethodID m) { has = env->CallStaticBooleanMethod(cls, m); });
+    return has == JNI_TRUE;
+}
+
 void UpdateSecondScreen(int loop, const std::string& line) {
     static int last_loop = -1;
     static std::string last_line;

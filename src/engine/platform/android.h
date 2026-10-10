@@ -27,6 +27,13 @@ float RenderScale();
    and the subtitle line playing now (empty for none), sent on only when one of them changes. Does nothing without one. */
 void UpdateSecondScreen(int loop, const std::string& line);
 
+/* What the second screen shows (AppSettings display.second_screen): 0 clock and subtitles, 1 clock, 2 dim clock, 3 off. Nothing
+   is shown there until this is called once. */
+void SetSecondScreenMode(int mode);
+
+/* Whether this device has a second screen to draw on (the settings page offers the choice only then). */
+bool HasSecondScreen();
+
 /* Writes the signal, the fault address and a backtrace (library + offset per frame) to `path` when the game crashes. */
 void InstallCrashLog(const std::filesystem::path& path);
 

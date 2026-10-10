@@ -19,6 +19,22 @@ public class PTActivity extends SDLActivity {
         SecondScreen.update(loop, line);
     }
 
+    // from the game: the Second screen setting (0 clock and subtitles, 1 clock, 2 dim clock, 3 off)
+    @SuppressWarnings("unused")
+    public static void setSecondScreenMode(int mode) {
+        SecondScreen.setMode(mode);
+    }
+
+    // from the game, building its settings page: whether to offer the Second screen setting
+    @SuppressWarnings("unused")
+    public static boolean hasSecondScreen() {
+        try {
+            return SecondScreen.available();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     @Override
     protected String[] getLibraries() {
         return new String[] { "SDL3", "main" };
