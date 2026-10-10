@@ -5053,6 +5053,10 @@ int main(int argc, char** argv) {
 #ifdef __ANDROID__
     // landscape only, and the shaders and fonts out of the APK into the data folder before anything looks for them
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    // the log (and a crash report) where the player can reach them: Download/PT-logs when the app may write there
+    pt::LogSetFile(pt::android::LogDir() / "pt.log");
+    pt::android::InstallCrashLog(pt::android::LogDir() / "pt-crash.txt");
+    pt::LogInfo("android: log in {}", pt::android::LogDir().string());
     pt::android::UnpackBundledAssets();
 #endif
     App app;
@@ -5079,8 +5083,13 @@ int main(int argc, char** argv) {
             log_path = UserDataDir() / "pt.log";
         }
     }
+#ifdef __ANDROID__
+    if (options.log_path.empty()) log_path = pt::android::LogDir() / "pt.log";  // already open since the start of main
+    g_output_dir = log_path.parent_path();
+#else
     g_output_dir = log_path.parent_path();
     pt::LogSetFile(log_path);
+#endif
     // PT_HEADLESS_ONLY (set by the workers' slot limiter, C:/Projects/pt-port/shared/ptslot.py): a run that would open a
     // window or a message box stops here, before SDL starts video (tools/run_guard_check.py)
     // A start that fails before the first frame used to end without a word (issue #25 and pt.log reports: "Installed Vulkan doesn't

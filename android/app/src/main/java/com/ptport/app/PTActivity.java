@@ -8,6 +8,8 @@ import android.os.Environment;
 import android.provider.Settings;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 
 import org.libsdl.app.SDLActivity;
 
@@ -21,8 +23,26 @@ public class PTActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        installJavaCrashLog();
         super.onCreate(savedInstanceState);
         requestStorageAccessIfNeeded();
+    }
+
+    /* A crash on the Java side (SDL's activity) goes to Download/PT-logs/pt-java-crash.txt, or the app's own folder. */
+    private void installJavaCrashLog() {
+        final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            File dir = new File("/storage/emulated/0/Download/PT-logs");
+            if (!dir.isDirectory() && !dir.mkdirs()) {
+                dir = getExternalFilesDir(null);
+            }
+            try (PrintWriter out = new PrintWriter(new FileWriter(new File(dir, "pt-java-crash.txt")))) {
+                out.println("thread " + thread.getName());
+                error.printStackTrace(out);
+            } catch (Exception ignored) {
+            }
+            if (previous != null) previous.uncaughtException(thread, error);
+        });
     }
 
     /* The game files may sit in the shared Download folder (Android/data is closed to file managers on Android 11+). Reading

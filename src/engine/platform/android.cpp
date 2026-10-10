@@ -7,13 +7,22 @@
 
 #include <adrenotools/driver.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <jni.h>
+#include <signal.h>
+#include <unistd.h>
+#include <unwind.h>
+
+#include <cstdio>
+#include <cstring>
 
 #include <algorithm>
 #include <cctype>
 #include <fstream>
 #include <sstream>
 #include <vector>
+
+#include <android/log.h>
 
 #include "engine/core/log.h"
 
@@ -83,6 +92,84 @@ std::filesystem::path DataDir() {
         return std::filesystem::path(internal ? internal : ".");
     }();
     return dir;
+}
+
+std::filesystem::path LogDir() {
+    static const std::filesystem::path dir = [] {
+        std::error_code ec;
+        const std::filesystem::path shared = "/storage/emulated/0/Download/PT-logs";
+        std::filesystem::create_directories(shared, ec);
+        const std::filesystem::path probe = shared / ".write-test";
+        if (FILE* f = std::fopen(probe.c_str(), "w")) {
+            std::fclose(f);
+            std::filesystem::remove(probe, ec);
+            return shared;
+        }
+        const std::filesystem::path own = DataDir() / "data";
+        std::filesystem::create_directories(own, ec);
+        return own;
+    }();
+    return dir;
+}
+
+namespace {
+
+int g_crash_fd = -1;
+struct sigaction g_previous[32];
+
+void WriteText(const char* text) {
+    if (g_crash_fd >= 0) (void)!write(g_crash_fd, text, std::strlen(text));
+}
+
+struct Frames {
+    void* pcs[64];
+    int count = 0;
+};
+
+_Unwind_Reason_Code CollectFrame(_Unwind_Context* context, void* arg) {
+    auto* frames = static_cast<Frames*>(arg);
+    const uintptr_t pc = _Unwind_GetIP(context);
+    if (pc && frames->count < 64) frames->pcs[frames->count++] = reinterpret_cast<void*>(pc);
+    return frames->count < 64 ? _URC_NO_REASON : _URC_END_OF_STACK;
+}
+
+void OnCrash(int signal, siginfo_t* info, void* context) {
+    char line[512];
+    std::snprintf(line, sizeof(line), "P.T. crashed: signal %d (%s), fault address %p\n", signal, strsignal(signal),
+                  info ? info->si_addr : nullptr);
+    WriteText(line);
+    __android_log_write(ANDROID_LOG_FATAL, "pt", line);
+    Frames frames;
+    _Unwind_Backtrace(CollectFrame, &frames);
+    for (int i = 0; i < frames.count; ++i) {
+        Dl_info dl{};
+        if (dladdr(frames.pcs[i], &dl) && dl.dli_fname) {
+            const uintptr_t offset = reinterpret_cast<uintptr_t>(frames.pcs[i]) - reinterpret_cast<uintptr_t>(dl.dli_fbase);
+            std::snprintf(line, sizeof(line), "  #%02d %s +0x%zx %s\n", i, dl.dli_fname, static_cast<size_t>(offset),
+                          dl.dli_sname ? dl.dli_sname : "");
+        } else {
+            std::snprintf(line, sizeof(line), "  #%02d %p\n", i, frames.pcs[i]);
+        }
+        WriteText(line);
+    }
+    if (g_crash_fd >= 0) fsync(g_crash_fd);
+    // hand the signal on (Android's debuggerd writes its tombstone, the process ends)
+    sigaction(signal, &g_previous[signal], nullptr);
+    (void)context;
+    raise(signal);
+}
+
+}  // namespace
+
+void InstallCrashLog(const std::filesystem::path& path) {
+    g_crash_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    struct sigaction action{};
+    action.sa_sigaction = OnCrash;
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+    sigemptyset(&action.sa_mask);
+    for (int signal : {SIGSEGV, SIGABRT, SIGBUS, SIGILL, SIGFPE}) {
+        sigaction(signal, &action, &g_previous[signal]);
+    }
 }
 
 bool UnpackBundledAssets() {
