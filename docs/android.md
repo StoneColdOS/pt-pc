@@ -16,12 +16,17 @@ file managers cannot write there on Android 11 and newer.
 
 ## Files
 
-Everything lives in `Android/data/com.ptport.app/files/`:
+- `Download/PT-logs/pt.log`: the log, with `pt-crash.txt` (and `pt-java-crash.txt`) after a crash. Send these when something
+  goes wrong; `adb pull /storage/emulated/0/Download/PT-logs` copies them to a computer. The same lines go to logcat
+  under the tag `pt`. Without All files access they are in `Android/data/com.ptport.app/files/data/` instead.
+- `Download/PT-logs/render_scale.txt`: the render size against the screen, `0.667` by default (`0.5` faster, `1` sharpest).
+- `Android/data/com.ptport.app/files/data/pt.ini`: settings and saves, as on PC.
+- `Android/data/com.ptport.app/files/driver.txt`: `turnip` (default, the bundled Mesa Turnip) or `system`.
 
-- `data/pt.log`: the log. Send this when something goes wrong. The same lines also go to logcat under the tag `pt`.
-- `data/pt.ini`: settings, as on PC.
-- `driver.txt`: `turnip` (default, the bundled Mesa Turnip) or `system` (the device's own Adreno driver).
-- `shaders/`, `fonts/`: unpacked from the APK on the first start of each new build.
+## Performance
+
+On the AYN Thor (Snapdragon 8 Gen 2, Adreno 740) at the default render scale the game holds about 60 fps in the start room
+and 45-60 in the hallway.
 
 ## Controls
 
@@ -31,6 +36,7 @@ A built-in or connected gamepad works as the PS4 pad. The voice part (saying "Ja
 
 - No speech recognition yet; use the trigger chord.
 - Switching away from the app while playing may lose the window and crash; save first.
+- Android's status bar stays over the top of the picture (the game runs windowed).
 - The PC upscalers, ray tracing, VR, enhanced textures and loop previews are not available.
 
 ## Building
