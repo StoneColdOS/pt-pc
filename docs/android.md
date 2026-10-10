@@ -39,6 +39,16 @@ A built-in or connected gamepad works as the PS4 pad. The voice part (saying "Ja
 - Switching away from the app while playing may lose the window and crash; save first.
 - The PC upscalers, ray tracing, VR, enhanced textures and loop previews are not available.
 
+## Releases
+
+Every push to `android-port` updates the rolling `android-latest` test build. A numbered release comes from a tag:
+
+```
+git tag android-v0.1.0 && git push origin android-v0.1.0
+```
+
+which publishes `PT-Android-v0.1.0.apk` with the notes in `docs/android-release-notes.md`.
+
 ## Building
 
 `.github/workflows/android.yml` builds the APK on every push to `android-port`. Locally: `tools/android/build_native.sh` with

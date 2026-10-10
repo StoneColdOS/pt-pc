@@ -5223,9 +5223,13 @@ int main(int argc, char** argv) {
                                      "\n\nStart P.T. again and pick your extracted CUSA01127 folder (it contains chunk1.psarc and "
                                      "texture.qar), put that folder next to pt.exe, or start pt.exe with --game <folder>.";
 #elif defined(__ANDROID__)
-            const std::string text = "The P.T. game files were not found.\n\nPut chunk1.psarc, texture.qar and pathid_list_ps4.bin in your "
-                                     "Download folder (LocalSend's default is fine), allow P.T. \"All files access\" when Android asks, "
-                                     "then start P.T. again.";
+            const bool access = pt::android::HasAllFilesAccess();
+            const std::string text =
+                std::string(access ? "" : "P.T. cannot see your Download folder yet. Allow it \"All files access\" (Android asked when P.T. "
+                                          "started; also Settings > Apps > P.T. > Permissions), then start P.T. again.\n\n") +
+                "P.T. needs your own copy of the game files. Copy these three files from your CUSA01127 dump into the Download "
+                "folder:\n\n  chunk1.psarc\n  texture.qar\n  pathid_list_ps4.bin\n\nThey can sit loose in Download or in a "
+                "Download/CUSA01127 folder. Then start P.T. again.";
 #else
             const std::string text = "The P.T. game files were not found in\n" + pt::os::PathToUtf8(std::filesystem::absolute(game_dir)) +
                                      "\n\nStart P.T. again and pick your extracted CUSA01127 folder (it contains chunk1.psarc and "
@@ -5270,8 +5274,35 @@ int main(int argc, char** argv) {
                         : (options.headless && !headless_user_data) ? std::filesystem::path()
                                                                     : UserDataDir() / "pt.ini";
     const bool settings_loaded = !app.settings_path.empty() && pt::LoadAppSettings(app.settings_path, app.settings);
+#ifdef __ANDROID__
+    /* A handheld's starting point, applied once (also to a pt.ini from an earlier test build, marked by a file beside it):
+       the original's look minus the heaviest passes, so the later loops hold their frame rate on a Snapdragon 8 Gen 2 class
+       GPU. Everything stays in the game's PC settings to turn back on. No update check: it looks for the PC releases. */
+    bool android_defaults_applied = false;
+    if (!options.headless && !app.settings_path.empty()) {
+        const std::filesystem::path marker = app.settings_path.parent_path() / ".android-defaults-v1";
+        std::error_code marker_ec;
+        if (!std::filesystem::exists(marker, marker_ec)) {
+            auto& g = app.settings.graphics;
+            g.shadow_quality = std::min(g.shadow_quality, 2);
+            g.ambient_occlusion = false;
+            g.motion_blur = false;
+            g.depth_of_field = false;
+            g.enhanced_textures = false;
+            app.settings.ray_tracing = pt::AppSettings::RayTracing{};
+            app.settings.network.check_updates = false;
+            std::ofstream(marker) << "Android graphics defaults applied once; delete this file to apply them again\n";
+            android_defaults_applied = true;
+            pt::LogInfo("android: handheld graphics defaults applied (shadows 1024 px, no ambient occlusion, motion blur, depth of field)");
+        }
+    }
+#endif
     if (!options.headless) {
-        if (!settings_loaded) {
+        bool save_now = !settings_loaded;
+#ifdef __ANDROID__
+        save_now = save_now || android_defaults_applied;
+#endif
+        if (save_now) {
             pt::SaveAppSettings(app.settings_path, app.settings);
         }
         if (app.settings.network.check_updates && !options.no_update_check) {

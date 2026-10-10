@@ -1,10 +1,13 @@
 # The Android APK (docs/android.md): arm64, for Snapdragon (Adreno) handhelds and phones. Every push to android-port builds
 # it; the APK is attached to the rolling "android-latest" pre-release, so it can be downloaded straight onto the device.
+# A tag android-v<version> (android-v0.1.0) makes a numbered release of its own, PT-Android-v<version>.apk, with the notes
+# in docs/android-release-notes.md.
 name: Android
 
 on:
   push:
     branches: [android-port]
+    tags: ['android-v*']
   workflow_dispatch:
 
 permissions:
@@ -44,7 +47,9 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew --no-daemon assembleRelease -PptVersionCode=${{ github.run_number }} -PptVersionName=android-${{ github.run_number }}-$(git rev-parse --short HEAD) 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then version="${GITHUB_REF_NAME#android-}"; else version="test-${{ github.run_number }}-$(git rev-parse --short HEAD)"; fi
+          echo "APK_VERSION=$version" >> "$GITHUB_ENV"
+          ./gradlew --no-daemon assembleRelease -PptVersionCode=${{ github.run_number }} -PptVersionName="$version" 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
           cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/PT-Android.apk"
           ls -la "$GITHUB_WORKSPACE/PT-Android.apk"
 
@@ -68,6 +73,15 @@ jobs:
         with:
           name: PT-Android
           path: PT-Android.apk
+
+      - name: Publish a numbered release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp PT-Android.apk "PT-Android-$APK_VERSION.apk"
+          gh release create "$GITHUB_REF_NAME" "PT-Android-$APK_VERSION.apk" --prerelease \
+            --title "P.T. for Android $APK_VERSION (experimental)" --notes-file docs/android-release-notes.md
 
       - name: Publish to android-latest
         if: github.ref == 'refs/heads/android-port'

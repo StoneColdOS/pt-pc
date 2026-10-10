@@ -95,6 +95,20 @@ std::filesystem::path DataDir() {
     return dir;
 }
 
+bool HasAllFilesAccess() {
+    auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
+    if (!env || SDL_GetAndroidSDKVersion() < 30) return true;
+    bool result = false;
+    if (jclass environment = env->FindClass("android/os/Environment")) {
+        if (jmethodID method = env->GetStaticMethodID(environment, "isExternalStorageManager", "()Z")) {
+            result = env->CallStaticBooleanMethod(environment, method);
+        }
+        env->DeleteLocalRef(environment);
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    return result;
+}
+
 std::filesystem::path LogDir() {
     static const std::filesystem::path dir = [] {
         std::error_code ec;

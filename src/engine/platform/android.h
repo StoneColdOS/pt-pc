@@ -13,6 +13,9 @@ namespace pt::android {
    pt.log live here, so they can be copied to and from the device over USB without root. */
 std::filesystem::path DataDir();
 
+/* Whether the app may read the shared Download folder (Android's "All files access", MANAGE_EXTERNAL_STORAGE). */
+bool HasAllFilesAccess();
+
 /* Where pt.log and pt-crash.txt go: Download/PT-logs when the app has All files access (reachable with any file manager or
    LocalSend), otherwise DataDir()/data. */
 std::filesystem::path LogDir();
