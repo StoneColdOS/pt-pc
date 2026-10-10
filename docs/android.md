@@ -7,10 +7,12 @@ port, built as `libmain.so` for SDL's Android activity, with Mesa Turnip bundled
 
 1. Download `PT-Android.apk` from the `android-latest` release of this fork and install it (allow installs from your browser
    or file manager when Android asks).
-2. Start P.T. once and close it. That creates `Android/data/com.ptport.app/files/`.
-3. Copy `chunk1.psarc`, `texture.qar` and `pathid_list_ps4.bin` from your own CUSA01127 dump into
-   `Android/data/com.ptport.app/files/game/CUSA01127/`. A PC over USB is the easiest way.
-4. Start P.T. again.
+2. Put `chunk1.psarc`, `texture.qar` and `pathid_list_ps4.bin` from your own CUSA01127 dump in the device's `Download`
+   folder, loose or in a `CUSA01127` folder. LocalSend's default location works.
+3. Start P.T. When Android asks, allow it "All files access" (needed to read the Download folder), then start P.T. again.
+
+The app's own folder, `Android/data/com.ptport.app/files/game/CUSA01127/`, also works and needs no permission, but most
+file managers cannot write there on Android 11 and newer.
 
 ## Files
 

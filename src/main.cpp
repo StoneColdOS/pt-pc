@@ -849,6 +849,17 @@ std::filesystem::path FindGameDir(const Options& options) {
         }
         dir = dir.parent_path();
     }
+#ifdef __ANDROID__
+    /* Android/data is out of reach of file managers and LocalSend on Android 11+: the shared folders are searched too, with
+       the files loose in Download (LocalSend's default) or in a CUSA01127 folder. Needs All files access (PTActivity). */
+    for (const char* shared : {"/storage/emulated/0/Download/CUSA01127", "/storage/emulated/0/Download/PT",
+                               "/storage/emulated/0/Download", "/storage/emulated/0/PT/CUSA01127", "/storage/emulated/0/PT",
+                               "/storage/emulated/0/CUSA01127"}) {
+        if (LooksLikeGameDir(shared)) {
+            return shared;
+        }
+    }
+#endif
     const std::filesystem::path remembered_file = RememberedGameDirFile();
     if (!remembered_file.empty()) {
         std::ifstream in(remembered_file, std::ios::binary);
@@ -5186,9 +5197,9 @@ int main(int argc, char** argv) {
                                      "\n\nStart P.T. again and pick your extracted CUSA01127 folder (it contains chunk1.psarc and "
                                      "texture.qar), put that folder next to pt.exe, or start pt.exe with --game <folder>.";
 #elif defined(__ANDROID__)
-            const std::string text = "The P.T. game files were not found.\n\nCopy chunk1.psarc, texture.qar and pathid_list_ps4.bin from your "
-                                     "CUSA01127 dump into\n" + pt::os::PathToUtf8(pt::ExecutableDir() / "game" / "CUSA01127") +
-                                     "\n(Android/data/com.ptport.app/files/game/CUSA01127 over USB), then start P.T. again.";
+            const std::string text = "The P.T. game files were not found.\n\nPut chunk1.psarc, texture.qar and pathid_list_ps4.bin in your "
+                                     "Download folder (LocalSend's default is fine), allow P.T. \"All files access\" when Android asks, "
+                                     "then start P.T. again.";
 #else
             const std::string text = "The P.T. game files were not found in\n" + pt::os::PathToUtf8(std::filesystem::absolute(game_dir)) +
                                      "\n\nStart P.T. again and pick your extracted CUSA01127 folder (it contains chunk1.psarc and "
