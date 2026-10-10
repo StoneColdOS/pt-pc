@@ -86,9 +86,6 @@ public:
     // the letterbox's bars stay out, and the UI's coverage goes in alpha
     void SetVrHud(bool enabled) { vr_hud_ = enabled; }
     SubtitlePlayer& Subtitles() { return subtitles_; }
-    // the subtitle line on screen now, as the game would draw it (the scene's own hiding applied), whether or not the player
-    // turned subtitles on: the Android second screen shows it (src/engine/platform/android.h, SecondScreen)
-    bool CurrentSubtitle(SubtitleView& out) const { return subtitles_.Current(hidden_subtitle_, out); }
     DemoUi& DemoGraphs() { return demo_ui_; }
     // the Archive's theater (archive_theater.h): the menu that opened it stays open but is neither drawn nor driven, the UI follows
     // the theater's game (Update), and a line at the bottom names what plays and how to leave

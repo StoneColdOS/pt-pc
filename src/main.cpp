@@ -1937,8 +1937,8 @@ public:
         // only on a dual-screen handheld (AYN Thor and the like)
         if (pt::android::HasSecondScreen()) {
             display.rows.push_back(Row(kSecondScreen, "pc_second_screen",
-                                       {"pc_second_screen_subtitles", "pc_second_screen_clock", "pc_second_screen_dim", "pc_off"},
-                                       std::clamp(s.display.second_screen, 0, 3), "pc_note_second_screen"));
+                                       {"pc_second_screen_clock", "pc_second_screen_dim", "pc_off"},
+                                       std::clamp(s.display.second_screen, 0, 2), "pc_note_second_screen"));
         }
 #endif
         out.push_back(std::move(display));
@@ -2245,7 +2245,7 @@ public:
             s.display.mute_in_background = value == 1;
             break;
         case kSecondScreen:
-            s.display.second_screen = std::clamp(value, 0, 3);
+            s.display.second_screen = std::clamp(value, 0, 2);
 #ifdef __ANDROID__
             pt::android::SetSecondScreenMode(s.display.second_screen);
 #endif
@@ -4302,9 +4302,8 @@ int RunGame(App& app, pt::Vfs& vfs) {
             ui.Update(theater ? theater->theater->Sandbox() : game, state, step);
 #ifdef __ANDROID__
             if (!theater) {
-                // the dual-screen handheld's bottom screen: the loop and the subtitle line now (sent only on a change)
-                pt::game::SubtitleView line;
-                pt::android::UpdateSecondScreen(game.Floor().Index(), ui.CurrentSubtitle(line) ? line.text : std::string());
+                // the dual-screen handheld's bottom screen: the loop (sent only on a change)
+                pt::android::UpdateSecondScreen(game.Floor().Index());
             }
 #endif
             const auto tick_t3 = std::chrono::steady_clock::now();

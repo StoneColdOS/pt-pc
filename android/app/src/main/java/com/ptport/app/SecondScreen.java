@@ -16,9 +16,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
-import android.text.Layout;
-import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.Log;
 import android.view.Display;
@@ -28,25 +25,21 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
-import java.nio.charset.StandardCharsets;
 
-/* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen red digital clock with the loop the player is
-   on, and the subtitle line playing now with the one before it, faded. Drawn with Android's own Canvas, so the game's GPU
+/* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen 23:59 digital clock, white with a cold blue
+   glow like the hallway's own, and the loop the player is on. Drawn with Android's own Canvas, so the game's GPU
    time is not touched. Shown as a Presentation on the second display (an activity on that display where the system refuses
    a Presentation); nothing happens on a device with one screen.
 
    The look is the game's Second screen setting (Settings > Display; display.second_screen in pt.ini), which the game sends
    through setMode as soon as its settings are read, and again on every change: until then nothing is shown. The game sends
-   the loop and the line through update (src/engine/platform/android.cpp). */
+   the loop through update (src/engine/platform/android.cpp). */
 final class SecondScreen {
     private static final String TAG = "pt";
-    private static final long PREVIOUS_LINE_MS = 20_000;
-
-    private static final String[] MODES = {"subtitles", "clock", "dim", "off"};
+    private static final String[] MODES = {"clock", "dim", "off"};
     private static SecondScreen instance;
     private static int modeIndex = -1;
     private static int loop = 0;
-    private static String line = "";
 
     private final Activity activity;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -67,14 +60,12 @@ final class SecondScreen {
 
     // ---- the game's side (any thread)
 
-    static void update(int newLoop, byte[] utf8) {
-        final String text = utf8 == null ? "" : new String(utf8, StandardCharsets.UTF_8);
+    static void update(int newLoop) {
         final int value = newLoop;
         new Handler(Looper.getMainLooper()).post(() -> {
             loop = value;
-            line = text;
             SecondScreen screen = instance;
-            if (screen != null && screen.view != null) screen.view.setState(loop, line);
+            if (screen != null && screen.view != null) screen.view.setLoop(loop);
         });
     }
 
@@ -107,7 +98,7 @@ final class SecondScreen {
         if (screen == null) return;
         screen.view = view;
         view.setMode(screen.mode);
-        view.setState(loop, line);
+        view.setLoop(loop);
     }
 
     static void detach(ClockView view) {
@@ -204,7 +195,7 @@ final class SecondScreen {
             hideBars(window);
             view = clock;
             clock.setMode(mode);
-            clock.setState(loop, line);
+            clock.setLoop(loop);
         }
     }
 
@@ -235,27 +226,23 @@ final class SecondScreen {
             {8, 50, 14, 44, 46, 44, 52, 50, 46, 56, 14, 56},
         };
         private static final String[] DIGITS = {"abcdef", "bc", "abged", "abgcd", "fgbc", "afgcd", "afgedc", "abc", "abcdefg", "abcdfg"};
-        private static final int RED = Color.rgb(0xFF, 0x3B, 0x2F);
-        private static final int LABEL = Color.rgb(0xE0, 0x64, 0x57);
+        // the hallway clock's colours: near-white segments in a cold blue glow
+        private static final int SEGMENT = Color.rgb(0xEA, 0xF1, 0xFF);
+        private static final int GLOW = Color.rgb(0x4A, 0x78, 0xFF);
+        private static final int LABEL = Color.rgb(0x8F, 0xB0, 0xFF);
+        private static final int DIM = Color.rgb(0xA9, 0xC0, 0xFF);
         private static final float SKEW = (float) Math.tan(Math.toRadians(6));
 
+        private final Paint halo = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint lit = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint ghost = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint rule = new Paint();
         private final TextPaint label = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        private final TextPaint current = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        private final TextPaint previous = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         private final Path[] segments = new Path[7];
         private final Path placed = new Path();
         private final Matrix matrix = new Matrix();
-        private final Handler handler = new Handler(Looper.getMainLooper());
-        private final Runnable expire = this::invalidate;
 
-        private String mode = "subtitles";
+        private String mode = "clock";
         private int loopNumber;
-        private String currentLine = "";
-        private String previousLine = "";
-        private long previousAt;
 
         ClockView(Context context) {
             super(context);
@@ -265,19 +252,15 @@ final class SecondScreen {
             } catch (Exception e) {
                 typewriter = Typeface.MONOSPACE;
             }
-            lit.setColor(RED);
-            ghost.setColor(RED);
-            ghost.setAlpha(18);
-            rule.setColor(Color.rgb(0x2A, 0x27, 0x25));
-            for (TextPaint p : new TextPaint[] {label, current, previous}) p.setTypeface(typewriter);
+            ghost.setColor(GLOW);
+            ghost.setAlpha(16);
+            label.setTypeface(typewriter);
             label.setColor(LABEL);
-            current.setColor(Color.rgb(0xE8, 0xE4, 0xDA));
-            previous.setColor(Color.rgb(0x8F, 0x89, 0x7D));
             for (int i = 0; i < 7; i++) {
                 float[] pts = SEGMENT_POINTS[i];
                 Path path = new Path();
                 for (int j = 0; j < pts.length; j += 2) {
-                    // the SVG mock-up's translate(6 0) skewX(-6)
+                    // the mock-up's translate(6 0) skewX(-6)
                     float x = pts[j] - pts[j + 1] * SKEW + 6, y = pts[j + 1];
                     if (j == 0) path.moveTo(x, y); else path.lineTo(x, y);
                 }
@@ -292,96 +275,29 @@ final class SecondScreen {
             invalidate();
         }
 
-        void setState(int loop, String text) {
+        void setLoop(int loop) {
             loopNumber = loop;
-            String next = text == null ? "" : text.trim();
-            if (!next.equals(currentLine)) {
-                if (!currentLine.isEmpty()) {
-                    previousLine = currentLine;
-                    previousAt = SystemClock.uptimeMillis();
-                    handler.removeCallbacks(expire);
-                    handler.postDelayed(expire, PREVIOUS_LINE_MS + 50);
-                }
-                currentLine = next;
-            }
             invalidate();
-        }
-
-        @Override
-        protected void onDetachedFromWindow() {
-            handler.removeCallbacks(expire);
-            super.onDetachedFromWindow();
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             final float w = getWidth(), h = getHeight();
             final float s = Math.min(w / 620f, h / 540f);
-            if (!previousLine.isEmpty() && SystemClock.uptimeMillis() - previousAt > PREVIOUS_LINE_MS) previousLine = "";
-            final String loopText = String.format("LOOP %02d", Math.max(0, Math.min(99, loopNumber)));
-
             if (mode.equals("dim")) {
                 float height = 106 * s;
-                float x0 = (w - clockWidth(height)) / 2f, y0 = (h - height) / 2f;
-                drawClock(canvas, x0, y0, height, 56, false, false);
+                drawClock(canvas, (w - clockWidth(height)) / 2f, (h - height) / 2f, height, true);
                 return;
             }
-            boolean text = mode.equals("subtitles") && (!currentLine.isEmpty() || !previousLine.isEmpty());
-            if (!text) {
-                // the clock alone, large and centred, the loop under it
-                float height = 160 * s;
-                float labelSize = 20 * s, gap = 36 * s;
-                float block = height + gap + labelSize;
-                float x0 = (w - clockWidth(height)) / 2f, y0 = (h - block) / 2f;
-                drawClock(canvas, x0, y0, height, 255, true, true);
-                label.setTextSize(labelSize);
-                label.setLetterSpacing(0.5f);
-                float lw = label.measureText(loopText);
-                canvas.drawText(loopText, (w - lw) / 2f, y0 + height + gap + labelSize * 0.8f, label);
-                return;
-            }
-            // the clock small at the top, the loop at the right, the lines under a rule
-            float padX = 48 * s, padTop = 44 * s, height = 80 * s;
-            drawClock(canvas, padX, padTop, height, 255, true, true);
-            label.setTextSize(16 * s);
-            label.setLetterSpacing(0.4f);
-            float lw = label.measureText(loopText);
-            canvas.drawText(loopText, w - padX - lw, padTop + height / 2f + 6 * s, label);
-            float ruleY = padTop + height + 28 * s;
-            canvas.drawRect(padX, ruleY, w - padX, ruleY + Math.max(1f, s), rule);
-            int textWidth = (int) Math.max(1, w - 2 * padX);
-            float y = ruleY + 28 * s;
-            float bottom = h - 40 * s;
-            if (!currentLine.isEmpty()) {
-                current.setTextSize(24 * s);
-                StaticLayout layout = layoutFor(currentLine, current, textWidth);
-                y = drawLayout(canvas, layout, padX, y, bottom) + 14 * s;
-            }
-            if (!previousLine.isEmpty() && y < bottom) {
-                previous.setTextSize(18 * s);
-                drawLayout(canvas, layoutFor(previousLine, previous, textWidth), padX, y, bottom);
-            }
-        }
-
-        private static StaticLayout layoutFor(String text, TextPaint paint, int width) {
-            return StaticLayout.Builder.obtain(text, 0, text.length(), paint, width)
-                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                    .setLineSpacing(0f, 1.25f)
-                    .setIncludePad(false)
-                    .build();
-        }
-
-        // draws as many whole lines as fit above bottom; returns where the next block starts
-        private static float drawLayout(Canvas canvas, StaticLayout layout, float x, float y, float bottom) {
-            int lines = layout.getLineCount();
-            while (lines > 0 && y + layout.getLineBottom(lines - 1) > bottom) lines--;
-            if (lines == 0) return y;
-            canvas.save();
-            canvas.translate(x, y);
-            canvas.clipRect(0, 0, layout.getWidth(), layout.getLineBottom(lines - 1));
-            layout.draw(canvas);
-            canvas.restore();
-            return y + layout.getLineBottom(lines - 1);
+            // the clock large and centred, the loop under it
+            final String loopText = String.format("LOOP %02d", Math.max(0, Math.min(99, loopNumber)));
+            float height = 160 * s, labelSize = 20 * s, gap = 36 * s;
+            float y0 = (h - (height + gap + labelSize)) / 2f;
+            drawClock(canvas, (w - clockWidth(height)) / 2f, y0, height, false);
+            label.setTextSize(labelSize);
+            label.setLetterSpacing(0.5f);
+            label.setShadowLayer(8 * s, 0, 0, GLOW);
+            canvas.drawText(loopText, (w - label.measureText(loopText)) / 2f, y0 + height + gap + labelSize * 0.8f, label);
         }
 
         private static float clockWidth(float height) {
@@ -389,31 +305,48 @@ final class SecondScreen {
             return digit * 4 + colon + gap * 4;
         }
 
-        private void drawClock(Canvas canvas, float x, float y, float height, int alpha, boolean ghosts, boolean glow) {
+        private void drawClock(Canvas canvas, float x, float y, float height, boolean dim) {
             String time = "2359";
             float digit = height * 0.6f, gap = height * 14f / 160f, colon = height * 22f / 160f;
             float unit = height / 100f;
-            lit.setAlpha(alpha);
-            // the glow in screen pixels: the segments are placed with a matrix, never drawn under a scaled canvas
-            if (glow) lit.setShadowLayer(16 * unit, 0, 0, RED); else lit.clearShadowLayer();
-            float cx = x;
-            for (int i = 0; i < 4; i++) {
-                if (i == 2) {
-                    float r = 5 * unit;
-                    canvas.drawCircle(cx + colon * 0.5f, y + 32 * unit, r, lit);
-                    canvas.drawCircle(cx + colon * 0.36f, y + 70 * unit, r, lit);
-                    cx += colon + gap;
+            // glow in screen pixels: a wide soft blue halo under a tight one on near-white segments (the matrix places the
+            // segments, never a scaled canvas, so the blur radii stay in pixels)
+            if (dim) {
+                lit.setColor(DIM);
+                lit.setAlpha(56);
+                lit.clearShadowLayer();
+            } else {
+                lit.setColor(SEGMENT);
+                lit.setShadowLayer(6 * unit, 0, 0, GLOW);
+                halo.setColor(GLOW);
+                halo.setAlpha(90);
+                halo.setShadowLayer(22 * unit, 0, 0, GLOW);
+            }
+            for (int pass = dim ? 1 : 0; pass < 2; pass++) {
+                Paint paint = pass == 0 ? halo : lit;
+                float cx = x;
+                for (int i = 0; i < 4; i++) {
+                    if (i == 2) {
+                        float r = 5 * unit;
+                        canvas.drawCircle(cx + colon * 0.5f, y + 32 * unit, r, paint);
+                        canvas.drawCircle(cx + colon * 0.36f, y + 70 * unit, r, paint);
+                        cx += colon + gap;
+                    }
+                    String on = DIGITS[time.charAt(i) - '0'];
+                    matrix.setScale(unit, unit);
+                    matrix.postTranslate(cx, y);
+                    for (int seg = 0; seg < 7; seg++) {
+                        boolean isOn = on.indexOf((char) ('a' + seg)) >= 0;
+                        if (isOn) {
+                            segments[seg].transform(matrix, placed);
+                            canvas.drawPath(placed, paint);
+                        } else if (pass == 1 && !dim) {
+                            segments[seg].transform(matrix, placed);
+                            canvas.drawPath(placed, ghost);
+                        }
+                    }
+                    cx += digit + gap;
                 }
-                String on = DIGITS[time.charAt(i) - '0'];
-                matrix.setScale(unit, unit);
-                matrix.postTranslate(cx, y);
-                for (int seg = 0; seg < 7; seg++) {
-                    boolean isOn = on.indexOf((char) ('a' + seg)) >= 0;
-                    if (!isOn && !ghosts) continue;
-                    segments[seg].transform(matrix, placed);
-                    canvas.drawPath(placed, isOn ? lit : ghost);
-                }
-                cx += digit + gap;
             }
         }
     }
