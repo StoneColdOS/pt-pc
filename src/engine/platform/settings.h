@@ -21,8 +21,8 @@ struct AppSettings {
         // black bars over and under the picture in play and in the demos, not in the original: 0 off, 1 2.39:1, 2 1.85:1 (the
         // photo mode's choices)
         int letterbox = 0;
-        // the bottom screen of a dual-screen handheld (Android; SecondScreen.java): 0 the clock with the loop, 1 a dim clock,
-        // 2 off
+        // the bottom screen of a dual-screen handheld (Android; SecondScreen.java): 0 the clock with the subtitle line playing
+        // now, 1 the clock alone, 2 a dim clock, 3 off
         int second_screen = 0;
     } display;
     struct Input {

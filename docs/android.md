@@ -28,9 +28,10 @@ output matches the desktop installer byte for byte.
 ## Second screen
 
 On a dual-screen handheld (AYN Thor and the like) the bottom screen shows a frozen 23:59 clock, near-white in a blue glow,
-with the loop the player is on. It is drawn with Android's Canvas (`SecondScreen.java`), not the game's GPU. The game's
-settings page offers Display > Second screen (`display.second_screen` in pt.ini: 0 clock, 1 dim clock, 2 off) only on a
-device with a second display. The game sends the setting and the loop through `SetSecondScreenMode` and
+with the loop the player is on and, by default, the subtitle line playing now (the radio included, whether or not
+subtitles are on in the game; only the line now, never older ones). It is drawn with Android's Canvas (`SecondScreen.java`), not the game's GPU. The game's
+settings page offers Display > Second screen (`display.second_screen` in pt.ini: 0 clock and subtitles, 1 clock, 2 dim clock, 3 off) only on a
+device with a second display. The game sends the setting, the loop and the line through `SetSecondScreenMode` and
 `UpdateSecondScreen` (`src/engine/platform/android.cpp`). The typewriter face is Special Elite (Apache-2.0,
 `third_party/second_screen_notices/`).
 

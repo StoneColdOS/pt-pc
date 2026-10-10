@@ -13,13 +13,13 @@ import org.libsdl.app.SDLActivity;
 public class PTActivity extends SDLActivity {
     private SecondScreen secondScreen;
 
-    // from the game (src/engine/platform/android.cpp UpdateSecondScreen): the loop the player is on
+    // from the game (src/engine/platform/android.cpp UpdateSecondScreen): the loop and the subtitle line, UTF-8
     @SuppressWarnings("unused")
-    public static void updateSecondScreen(int loop) {
-        SecondScreen.update(loop);
+    public static void updateSecondScreen(int loop, byte[] line) {
+        SecondScreen.update(loop, line);
     }
 
-    // from the game: the Second screen setting (0 clock, 1 dim clock, 2 off)
+    // from the game: the Second screen setting (0 clock and subtitles, 1 clock, 2 dim clock, 3 off)
     @SuppressWarnings("unused")
     public static void setSecondScreenMode(int mode) {
         SecondScreen.setMode(mode);

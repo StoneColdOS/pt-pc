@@ -175,12 +175,20 @@ bool HasSecondScreen() {
     return has == JNI_TRUE;
 }
 
-void UpdateSecondScreen(int loop) {
+void UpdateSecondScreen(int loop, const std::string& line) {
     static int last_loop = -1;
-    if (loop == last_loop) return;
+    static std::string last_line;
+    if (loop == last_loop && line == last_line) return;
     last_loop = loop;
-    CallActivityStatic("updateSecondScreen", "(I)V",
-                       [&](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m, static_cast<jint>(loop)); });
+    last_line = line;
+    CallActivityStatic("updateSecondScreen", "(I[B)V", [&](JNIEnv* env, jclass cls, jmethodID m) {
+        // UTF-8 bytes, decoded in Java: NewStringUTF wants modified UTF-8 and rejects some valid text
+        jbyteArray bytes = env->NewByteArray(static_cast<jsize>(line.size()));
+        if (!bytes) return;
+        env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(line.size()), reinterpret_cast<const jbyte*>(line.data()));
+        env->CallStaticVoidMethod(cls, m, static_cast<jint>(loop), bytes);
+        env->DeleteLocalRef(bytes);
+    });
 }
 
 namespace {

@@ -16,6 +16,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.text.Layout;
+import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.Log;
 import android.view.Display;
@@ -27,19 +30,23 @@ import android.view.WindowManager;
 
 
 /* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen 23:59 digital clock, white with a cold blue
-   glow like the hallway's own, and the loop the player is on. Drawn with Android's own Canvas, so the game's GPU
+   glow like the hallway's own, the loop the player is on, and (the default look) the subtitle line playing now. Drawn with Android's own Canvas, so the game's GPU
    time is not touched. Shown as a Presentation on the second display (an activity on that display where the system refuses
    a Presentation); nothing happens on a device with one screen.
 
    The look is the game's Second screen setting (Settings > Display; display.second_screen in pt.ini), which the game sends
    through setMode as soon as its settings are read, and again on every change: until then nothing is shown. The game sends
-   the loop through update (src/engine/platform/android.cpp). */
+   the loop and the line through update (src/engine/platform/android.cpp). */
 final class SecondScreen {
     private static final String TAG = "pt";
-    private static final String[] MODES = {"clock", "dim", "off"};
+    // after a line ends, the text layout stays this long before the large clock comes back, so the screen does not jump
+    // between the two in the pauses of a conversation or a broadcast
+    private static final long HOLD_LAYOUT_MS = 8_000;
+    private static final String[] MODES = {"subtitles", "clock", "dim", "off"};
     private static SecondScreen instance;
     private static int modeIndex = -1;
     private static int loop = 0;
+    private static String line = "";
 
     private final Activity activity;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -60,12 +67,17 @@ final class SecondScreen {
 
     // ---- the game's side (any thread)
 
-    static void update(int newLoop) {
+    static void update(int newLoop, byte[] utf8) {
+        final String text = utf8 == null ? "" : new String(utf8, java.nio.charset.StandardCharsets.UTF_8);
         final int value = newLoop;
         new Handler(Looper.getMainLooper()).post(() -> {
             loop = value;
+            line = text;
             SecondScreen screen = instance;
-            if (screen != null && screen.view != null) screen.view.setLoop(loop);
+            if (screen != null && screen.view != null) {
+                screen.view.setLoop(loop);
+                screen.view.setLine(line);
+            }
         });
     }
 
@@ -99,6 +111,7 @@ final class SecondScreen {
         screen.view = view;
         view.setMode(screen.mode);
         view.setLoop(loop);
+        view.setLine(line);
     }
 
     static void detach(ClockView view) {
@@ -196,6 +209,7 @@ final class SecondScreen {
             view = clock;
             clock.setMode(mode);
             clock.setLoop(loop);
+            clock.setLine(line);
         }
     }
 
@@ -237,12 +251,18 @@ final class SecondScreen {
         private final Paint lit = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint ghost = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final TextPaint label = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        private final TextPaint subtitle = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint rule = new Paint();
+        private final Handler handler = new Handler(Looper.getMainLooper());
+        private final Runnable relayout = this::invalidate;
         private final Path[] segments = new Path[7];
         private final Path placed = new Path();
         private final Matrix matrix = new Matrix();
 
         private String mode = "clock";
         private int loopNumber;
+        private String currentLine = "";
+        private long lineEndedAt;
 
         ClockView(Context context) {
             super(context);
@@ -256,6 +276,9 @@ final class SecondScreen {
             ghost.setAlpha(16);
             label.setTypeface(typewriter);
             label.setColor(LABEL);
+            subtitle.setTypeface(typewriter);
+            subtitle.setColor(Color.rgb(0xE8, 0xEC, 0xF4));
+            rule.setColor(Color.rgb(0x1E, 0x24, 0x33));
             for (int i = 0; i < 7; i++) {
                 float[] pts = SEGMENT_POINTS[i];
                 Path path = new Path();
@@ -280,6 +303,24 @@ final class SecondScreen {
             invalidate();
         }
 
+        void setLine(String text) {
+            String next = text == null ? "" : text.trim();
+            if (next.equals(currentLine)) return;
+            if (next.isEmpty()) {
+                lineEndedAt = SystemClock.uptimeMillis();
+                handler.removeCallbacks(relayout);
+                handler.postDelayed(relayout, HOLD_LAYOUT_MS + 50);
+            }
+            currentLine = next;
+            invalidate();
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            handler.removeCallbacks(relayout);
+            super.onDetachedFromWindow();
+        }
+
         @Override
         protected void onDraw(Canvas canvas) {
             final float w = getWidth(), h = getHeight();
@@ -287,6 +328,12 @@ final class SecondScreen {
             if (mode.equals("dim")) {
                 float height = 106 * s;
                 drawClock(canvas, (w - clockWidth(height)) / 2f, (h - height) / 2f, height, true);
+                return;
+            }
+            final boolean textLayout = mode.equals("subtitles")
+                    && (!currentLine.isEmpty() || (lineEndedAt > 0 && SystemClock.uptimeMillis() - lineEndedAt < HOLD_LAYOUT_MS));
+            if (textLayout) {
+                drawWithSubtitle(canvas, w, h, s);
                 return;
             }
             // the clock large and centred, the loop under it
@@ -298,6 +345,36 @@ final class SecondScreen {
             label.setLetterSpacing(0.5f);
             label.setShadowLayer(8 * s, 0, 0, GLOW);
             canvas.drawText(loopText, (w - label.measureText(loopText)) / 2f, y0 + height + gap + labelSize * 0.8f, label);
+        }
+
+        // the clock small at the top, the loop at its right, the line now under a rule (only the line now: an older one under it
+        // breaks the reading)
+        private void drawWithSubtitle(Canvas canvas, float w, float h, float s) {
+            final String loopText = String.format("LOOP %02d", Math.max(0, Math.min(99, loopNumber)));
+            float padX = 48 * s, padTop = 44 * s, height = 80 * s;
+            drawClock(canvas, padX, padTop, height, false);
+            label.setTextSize(16 * s);
+            label.setLetterSpacing(0.4f);
+            label.setShadowLayer(6 * s, 0, 0, GLOW);
+            canvas.drawText(loopText, w - padX - label.measureText(loopText), padTop + height / 2f + 6 * s, label);
+            float ruleY = padTop + height + 28 * s;
+            canvas.drawRect(padX, ruleY, w - padX, ruleY + Math.max(1f, s), rule);
+            if (currentLine.isEmpty()) return;
+            subtitle.setTextSize(26 * s);
+            int width = (int) Math.max(1, w - 2 * padX);
+            StaticLayout layout = StaticLayout.Builder.obtain(currentLine, 0, currentLine.length(), subtitle, width)
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                    .setLineSpacing(0f, 1.3f)
+                    .setIncludePad(false)
+                    .build();
+            float top = ruleY + 32 * s, bottom = h - 36 * s;
+            int lines = layout.getLineCount();
+            while (lines > 1 && top + layout.getLineBottom(lines - 1) > bottom) lines--;
+            canvas.save();
+            canvas.translate(padX, top);
+            canvas.clipRect(0, 0, width, layout.getLineBottom(lines - 1));
+            layout.draw(canvas);
+            canvas.restore();
         }
 
         private static float clockWidth(float height) {
