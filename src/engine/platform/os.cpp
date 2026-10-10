@@ -108,6 +108,11 @@ uint32_t ProcessId() { return static_cast<uint32_t>(getpid()); }
 ProcessResult RunProcess(const std::filesystem::path& program, const std::vector<std::string>& args, const std::filesystem::path& working_dir,
                          const std::filesystem::path& log, const std::atomic<bool>& cancel, std::chrono::milliseconds timeout) {
     ProcessResult result;
+#ifdef __ANDROID__
+    /* an Android app has no helper programs to start (the loop previews and the texture upscaler are desktop programs) */
+    (void)program; (void)args; (void)working_dir; (void)log; (void)cancel; (void)timeout;
+    return result;
+#endif
     const int log_fd = open(log.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
     if (log_fd < 0) return result;
     posix_spawn_file_actions_t actions;
@@ -115,7 +120,9 @@ ProcessResult RunProcess(const std::filesystem::path& program, const std::vector
     posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
     posix_spawn_file_actions_adddup2(&actions, log_fd, 1);
     posix_spawn_file_actions_adddup2(&actions, log_fd, 2);
+#ifndef __ANDROID__
     posix_spawn_file_actions_addchdir_np(&actions, working_dir.c_str());
+#endif
     std::vector<std::string> owned{program.string()};
     owned.insert(owned.end(), args.begin(), args.end());
     std::vector<char*> argv;
