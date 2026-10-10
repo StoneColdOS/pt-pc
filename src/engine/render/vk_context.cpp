@@ -665,6 +665,18 @@ bool Context::CreateSwapchain(uint32_t width, uint32_t height, bool vsync, bool 
     if (extent.width == 0 || extent.height == 0) {
         return false;
     }
+#ifdef __ANDROID__
+    /* a smaller swapchain than the window: Android's compositor scales it to the screen for free, and the whole renderer runs
+       at the smaller size (main.cpp scales the render extent the same way, so the two match) */
+    {
+        static const float scale = android::RenderScale();
+        const VkExtent2D scaled{std::max(2u, static_cast<uint32_t>(extent.width * scale) & ~1u),
+                                std::max(2u, static_cast<uint32_t>(extent.height * scale) & ~1u)};
+        extent.width = std::clamp(scaled.width, caps.minImageExtent.width, caps.maxImageExtent.width);
+        extent.height = std::clamp(scaled.height, caps.minImageExtent.height, caps.maxImageExtent.height);
+        LogInfo("vulkan: swapchain {}x{} for a {}x{} window", extent.width, extent.height, caps.currentExtent.width, caps.currentExtent.height);
+    }
+#endif
     uint32_t image_count = caps.minImageCount + 1;
     if (caps.maxImageCount > 0) {
         image_count = std::min(image_count, caps.maxImageCount);
