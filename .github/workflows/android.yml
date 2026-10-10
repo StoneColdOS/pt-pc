@@ -59,7 +59,10 @@ jobs:
           if ! gh release view android-logs >/dev/null 2>&1; then
             gh release create android-logs --prerelease --title "Android build logs" --notes "Logs of the latest Android build." --target "$GITHUB_SHA"
           fi
-          gh release upload android-logs build.log build-errors.log --clobber
+          files="build.log build-errors.log"
+          # the unstripped libmain.so of this build: turns the offsets in a pt-crash.txt into function names
+          [ -f build/android/libmain.so ] && cp build/android/libmain.so libmain-symbols.so && files="$files libmain-symbols.so"
+          gh release upload android-logs $files --clobber
 
       - uses: actions/upload-artifact@v4
         with:
