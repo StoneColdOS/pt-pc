@@ -41,13 +41,9 @@ A built-in or connected gamepad works as the PS4 pad. The voice part (saying "Ja
 
 ## Releases
 
-Every push to `android-port` updates the rolling `android-latest` test build. A numbered release comes from a tag:
-
-```
-git tag android-v0.1.0 && git push origin android-v0.1.0
-```
-
-which publishes `PT-Android-v0.1.0.apk` with the notes in `docs/android-release-notes.md`.
+Every push to `android-port` updates the rolling `android-latest` test build. A numbered release comes from
+`android/release-version.txt`: put a new version in it (`v0.2.0`) and push, and that build publishes `android-v0.2.0` with
+`PT-Android-v0.2.0.apk` and the notes in `docs/android-release-notes.md`. Pushing a tag `android-v0.2.0` does the same.
 
 ## Building
 
