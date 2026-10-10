@@ -5053,6 +5053,9 @@ int main(int argc, char** argv) {
 #ifdef __ANDROID__
     // landscape only, and the shaders and fonts out of the APK into the data folder before anything looks for them
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    /* SDL lists the device's accelerometer as a joystick and its Android code maps unknown joysticks as gamepads, so tilting
+       the handheld moved the camera and the player: no accelerometer joystick */
+    SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
     // the log (and a crash report) where the player can reach them: Download/PT-logs when the app may write there
     pt::LogSetFile(pt::android::LogDir() / "pt.log");
     pt::android::InstallCrashLog(pt::android::LogDir() / "pt-crash.txt");
