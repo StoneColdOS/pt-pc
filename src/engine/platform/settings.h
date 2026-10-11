@@ -24,6 +24,8 @@ struct AppSettings {
         // the bottom screen of a dual-screen handheld (Android; SecondScreen.java): 0 the clock with the subtitle line playing
         // now, 1 the clock alone, 2 a dim clock, 3 off
         int second_screen = 0;
+        // the on-screen touch controls (Android; TouchControls.java): 0 shown on a touch, 1 off
+        int touch_controls = 0;
     } display;
     struct Input {
         float mouse_sensitivity = 1.0f;

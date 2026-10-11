@@ -1951,6 +1951,8 @@ public:
                                        {"pc_second_screen_subtitles", "pc_second_screen_clock", "pc_second_screen_dim", "pc_off"},
                                        std::clamp(s.display.second_screen, 0, 3), "pc_note_second_screen"));
         }
+        display.rows.push_back(Row(kTouchControls, "pc_touch_controls", {"pc_touch_controls_auto", "pc_off"},
+                                   std::clamp(s.display.touch_controls, 0, 1), "pc_note_touch_controls"));
 #endif
         out.push_back(std::move(display));
 
@@ -2259,6 +2261,12 @@ public:
             s.display.second_screen = std::clamp(value, 0, 3);
 #ifdef __ANDROID__
             pt::android::SetSecondScreenMode(s.display.second_screen);
+#endif
+            break;
+        case kTouchControls:
+            s.display.touch_controls = std::clamp(value, 0, 1);
+#ifdef __ANDROID__
+            pt::android::SetTouchControlsEnabled(s.display.touch_controls == 0);
 #endif
             break;
         case kUpscaler: {
@@ -2707,7 +2715,7 @@ private:
         kLoopBrowser, kExtras, kFreecam, kPhotoMode, kStreetWalk, kStreetRestart, kStreetLeave, kLoopLock, kThirdPerson, kSpeedrun, kLiveSplit, kRunMenu, kRunReal, kRunGame, kRunBest,
         kArchive, kArchiveLock,
         kVr, kVrMode, kVrFlashlight, kVrTurn, kVrHeight, kVrWorldScale,
-        kSecondScreen,
+        kSecondScreen, kTouchControls,
         kLoopFirst = 1000,
         kRunSplitFirst = 3000,
         kModFirst = 2000,
@@ -5340,6 +5348,7 @@ int main(int argc, char** argv) {
 #ifdef __ANDROID__
         save_now = save_now || android_defaults_applied;
         pt::android::SetSecondScreenMode(app.settings.display.second_screen);
+        pt::android::SetTouchControlsEnabled(app.settings.display.touch_controls == 0);
 #endif
         if (save_now) {
             pt::SaveAppSettings(app.settings_path, app.settings);

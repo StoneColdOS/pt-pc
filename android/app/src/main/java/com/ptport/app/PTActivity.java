@@ -18,6 +18,16 @@ public class PTActivity extends SDLActivity {
     private TouchControls touchControls;
     private static PTActivity current;
 
+    // from the game (src/engine/platform/android.cpp SetTouchControlsEnabled): the setting, any thread
+    @SuppressWarnings("unused")
+    public static void setTouchControlsEnabled(boolean enabled) {
+        final PTActivity activity = current;
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (activity.touchControls != null) activity.touchControls.setAllowed(enabled);
+        });
+    }
+
     // from the game (src/engine/platform/android.cpp NoteControllerEvent): a real controller was used, on the game thread
     @SuppressWarnings("unused")
     public static void controllerUsed() {

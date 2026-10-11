@@ -165,6 +165,11 @@ bool CallActivityStatic(const char* name, const char* signature, Call&& call) {
 
 }  // namespace
 
+void SetTouchControlsEnabled(bool enabled) {
+    CallActivityStatic("setTouchControlsEnabled", "(Z)V",
+                       [&](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m, static_cast<jboolean>(enabled)); });
+}
+
 void SetSecondScreenMode(int mode) {
     CallActivityStatic("setSecondScreenMode", "(I)V",
                        [&](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m, static_cast<jint>(mode)); });
@@ -399,6 +404,7 @@ void NoteControllerEvent(const SDL_Event& event) {
     }
     if (SDL_IsJoystickVirtual(which)) return;
     g_touch_visible = false;
+    LogInfo("android: controller {} used, touch controls put away", which);
     CallActivityStatic("controllerUsed", "()V", [](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m); });
 }
 

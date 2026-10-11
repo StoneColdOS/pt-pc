@@ -57,6 +57,13 @@ public class TouchControls extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
     private boolean shown;
+    // the setting (display.touch_controls): off keeps the overlay away
+    private boolean allowed = true;
+    // put away after this long without a finger on the screen
+    private static final long HIDE_AFTER_MS = 5000;
+    private final Runnable hideIdle = () -> {
+        if (!anyFingerDown()) hide();
+    };
     private int lastButtons = -1;
     private float lastLx, lastLy, lastRx, lastRy;
 
@@ -75,6 +82,7 @@ public class TouchControls extends View {
         label.setTypeface(typewriter != null ? typewriter : Typeface.MONOSPACE);
         // shown at the start only when no controller is connected (a handheld's own pad counts)
         setShown(!controllerConnected());
+        if (shown) postDelayed(hideIdle, HIDE_AFTER_MS * 2);
     }
 
     private void setShown(boolean value) {
@@ -108,8 +116,33 @@ public class TouchControls extends View {
         buttons[4].area.set(w - margin - small * 3.4f, top, w - margin - small * 1.8f, top + small * 0.8f);
     }
 
+    void setAllowed(boolean value) {
+        allowed = value;
+        setVisibility(value ? VISIBLE : GONE);
+        if (!value) hide();
+    }
+
+    private boolean anyFingerDown() {
+        if (move.pointer >= 0 || look.pointer >= 0) return true;
+        for (Button b : buttons) {
+            if (b.pointer >= 0) return true;
+        }
+        return false;
+    }
+
+    private void hide() {
+        removeCallbacks(hideIdle);
+        if (!shown) return;
+        setShown(false);
+        move.pointer = look.pointer = -1;
+        for (Button b : buttons) b.pointer = -1;
+        send();
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (!allowed) return false;
+        removeCallbacks(hideIdle);
         if (!shown) setShown(true);
         final int action = event.getActionMasked();
         final int index = event.getActionIndex();
@@ -143,6 +176,7 @@ public class TouchControls extends View {
         }
         send();
         invalidate();
+        if (!anyFingerDown()) postDelayed(hideIdle, HIDE_AFTER_MS);
         return true;
     }
 
@@ -192,11 +226,7 @@ public class TouchControls extends View {
 
     // a real controller in use: the overlay steps aside until the screen is touched again
     void controllerUsed() {
-        if (!shown) return;
-        setShown(false);
-        move.pointer = look.pointer = -1;
-        for (Button b : buttons) b.pointer = -1;
-        send();
+        hide();
     }
 
     static boolean isController(int source) {

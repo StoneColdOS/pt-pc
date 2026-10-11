@@ -47,7 +47,8 @@ folder (loose or in a `CUSA01127` folder), and allow **All files access** when a
 
 **Touch controls:** without a controller, on-screen controls show up: drag on the left half to walk, on the right half to
 look, and the buttons for Use, Zoom, Back, Pause and Name (the voice part). They also appear whenever you touch the screen,
-and step aside as soon as a controller is used.
+and fade out after a few seconds without a touch or as soon as a controller is used. To turn them off for good:
+**Display > Touch controls > Off**.
 
 **Controller:** The Xbox-layout controls of the PS4 original. Near the end the game asks you to say a name: say it out loud and the game
 hears it through the microphone, or **hold both triggers** instead.
