@@ -1,4 +1,6 @@
 #pragma once
+
+#include <SDL3/SDL_events.h>
 // Android (docs/android.md): where the game keeps its files, the data bundled in the APK, and the Vulkan driver.
 #ifdef __ANDROID__
 
@@ -50,6 +52,10 @@ PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name);
    other pad: attached on the first touch, its sticks and buttons set from what the overlay last sent. Called once a frame
    before the events are pumped. */
 void PumpTouchControls();
+/* An SDL event from a real (not the touch controls') gamepad: a pressed button or a stick or trigger past half puts the
+   touch controls away. The game sees every pad here, also the ones SDL reads itself (HIDAPI) that Android's input events
+   never report, such as the AYN Thor's built-in controls. */
+void NoteControllerEvent(const SDL_Event& event);
 
 }  // namespace pt::android
 

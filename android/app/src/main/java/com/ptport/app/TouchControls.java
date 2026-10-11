@@ -20,6 +20,8 @@ public class TouchControls extends View {
     private static final int A = 1, B = 2, START = 4, ZOOM = 8, NAME = 16;
 
     private static native void nativeState(float lx, float ly, float rx, float ry, int buttons);
+    // tells the game whether the overlay is up, so that it puts it away when a real controller is used (NoteControllerEvent)
+    private static native void nativeVisible(boolean visible);
 
     private static final class Button {
         final int bit;
@@ -72,7 +74,17 @@ public class TouchControls extends View {
         }
         label.setTypeface(typewriter != null ? typewriter : Typeface.MONOSPACE);
         // shown at the start only when no controller is connected (a handheld's own pad counts)
-        shown = !controllerConnected();
+        setShown(!controllerConnected());
+    }
+
+    private void setShown(boolean value) {
+        shown = value;
+        try {
+            nativeVisible(value);
+        } catch (UnsatisfiedLinkError ignored) {
+            // the game library is not loaded yet
+        }
+        postInvalidate();
     }
 
     private float dp(float value) {
@@ -98,10 +110,7 @@ public class TouchControls extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (!shown) {
-            shown = true;
-            invalidate();
-        }
+        if (!shown) setShown(true);
         final int action = event.getActionMasked();
         final int index = event.getActionIndex();
         switch (action) {
@@ -184,11 +193,10 @@ public class TouchControls extends View {
     // a real controller in use: the overlay steps aside until the screen is touched again
     void controllerUsed() {
         if (!shown) return;
-        shown = false;
+        setShown(false);
         move.pointer = look.pointer = -1;
         for (Button b : buttons) b.pointer = -1;
         send();
-        postInvalidate();
     }
 
     static boolean isController(int source) {

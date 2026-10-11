@@ -3309,6 +3309,9 @@ bool PumpEvents(App& app, pt::InputDevice* input, bool& running, pt::KeyPressLat
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL3_ProcessEvent(&event);
+#ifdef __ANDROID__
+        pt::android::NoteControllerEvent(event);
+#endif
         if (input) {
             input->ProcessEvent(event);
         }

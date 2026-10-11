@@ -378,6 +378,7 @@ namespace {
 std::atomic<uint32_t> g_touch_buttons{0};
 std::atomic<uint64_t> g_touch_axes{0}; // left x, left y, right x, right y as four Sint16
 std::atomic<bool> g_touch_used{false};
+std::atomic<bool> g_touch_visible{false}; // the overlay is up (TouchControls.nativeVisible)
 SDL_Joystick* g_touch_pad = nullptr;
 
 constexpr uint32_t kTouchA = 1, kTouchB = 2, kTouchStart = 4, kTouchZoom = 8, kTouchName = 16;
@@ -385,6 +386,21 @@ constexpr uint32_t kTouchA = 1, kTouchB = 2, kTouchStart = 4, kTouchZoom = 8, kT
 int16_t Axis(uint64_t packed, int index) { return static_cast<int16_t>((packed >> (16 * index)) & 0xFFFF); }
 
 }  // namespace
+
+void NoteControllerEvent(const SDL_Event& event) {
+    if (!g_touch_visible.load(std::memory_order_relaxed)) return;
+    SDL_JoystickID which = 0;
+    if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) {
+        which = event.gbutton.which;
+    } else if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && (event.gaxis.value > 16384 || event.gaxis.value < -16384)) {
+        which = event.gaxis.which;
+    } else {
+        return;
+    }
+    if (SDL_IsJoystickVirtual(which)) return;
+    g_touch_visible = false;
+    CallActivityStatic("controllerUsed", "()V", [](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m); });
+}
 
 void PumpTouchControls() {
     if (!g_touch_used.load(std::memory_order_relaxed)) return;
@@ -428,6 +444,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_ptport_app_TouchControls_nativeState(
     pt::android::g_touch_axes.store(to16(lx) | (to16(ly) << 16) | (to16(rx) << 32) | (to16(ry) << 48), std::memory_order_relaxed);
     pt::android::g_touch_buttons.store(static_cast<uint32_t>(buttons), std::memory_order_relaxed);
     pt::android::g_touch_used.store(true, std::memory_order_relaxed);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_ptport_app_TouchControls_nativeVisible(JNIEnv*, jclass, jboolean visible) {
+    pt::android::g_touch_visible.store(visible, std::memory_order_relaxed);
 }
 
 

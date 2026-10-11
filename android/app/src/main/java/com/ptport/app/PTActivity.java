@@ -16,6 +16,17 @@ import org.libsdl.app.SDLActivity;
 public class PTActivity extends SDLActivity {
     private SecondScreen secondScreen;
     private TouchControls touchControls;
+    private static PTActivity current;
+
+    // from the game (src/engine/platform/android.cpp NoteControllerEvent): a real controller was used, on the game thread
+    @SuppressWarnings("unused")
+    public static void controllerUsed() {
+        final PTActivity activity = current;
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (activity.touchControls != null) activity.touchControls.controllerUsed();
+        });
+    }
 
     // from the game (src/engine/platform/android.cpp UpdateSecondScreen): the loop and the subtitle line, UTF-8
     @SuppressWarnings("unused")
@@ -48,6 +59,7 @@ public class PTActivity extends SDLActivity {
     protected void onCreate(Bundle savedInstanceState) {
         installJavaCrashLog();
         super.onCreate(savedInstanceState);
+        current = this;
         secondScreen = new SecondScreen(this);
         // the on-screen controls over the game (TouchControls.java)
         touchControls = new TouchControls(this);
