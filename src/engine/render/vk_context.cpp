@@ -81,6 +81,28 @@ bool RayQuerySupport(VkPhysicalDevice physical, std::string& missing) {
     return true;
 }
 
+// Compat mode (Vulkan 1.1 driver): every device extension the driver has, four to a line, so that a pt.log shows what the GPU
+// can do and which of the Vulkan 1.3 pieces the renderer needs it offers as extensions.
+void LogDeviceExtensions(VkPhysicalDevice physical) {
+    uint32_t count = 0;
+    vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, nullptr);
+    std::vector<VkExtensionProperties> available(count);
+    vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, available.data());
+    std::string line;
+    int in_line = 0;
+    for (const VkExtensionProperties& e : available) {
+        if (!line.empty()) line += " ";
+        line += e.extensionName;
+        if (++in_line == 4) {
+            LogInfo("vulkan: extensions: {}", line);
+            line.clear();
+            in_line = 0;
+        }
+    }
+    if (!line.empty()) LogInfo("vulkan: extensions: {}", line);
+    LogInfo("vulkan: {} device extensions in all", count);
+}
+
 bool HasLayer(const char* name) {
     uint32_t count = 0;
     vkEnumerateInstanceLayerProperties(&count, nullptr);
@@ -305,11 +327,18 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
             devices.assign(1, required);
         }
     }
+#ifdef __ANDROID__
+    /* Vulkan 1.1 compat mode (docs/android-mali.md): a GPU whose driver is below 1.3, such as the Mali-G57, is taken as well; the
+       device then gets the core features only (see compat_vk11) */
+    const uint32_t min_api_version = VK_API_VERSION_1_1;
+#else
+    const uint32_t min_api_version = VK_API_VERSION_1_3;
+#endif
     int best_score = -1;
     for (VkPhysicalDevice candidate : devices) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(candidate, &props);
-        if (props.apiVersion < VK_API_VERSION_1_3) {
+        if (props.apiVersion < min_api_version) {
             continue;
         }
         uint32_t family_count = 0;
@@ -337,13 +366,28 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
 #ifdef __ANDROID__
         if (retry_on_system_driver()) return Init(window, validation, want_hdr);
 #endif
-        LogError("vulkan: no Vulkan 1.3 device with a graphics queue");
+        LogError("vulkan: no Vulkan {} device with a graphics queue", min_api_version >= VK_API_VERSION_1_3 ? "1.3" : "1.1 or newer");
         return false;
     }
     LogInfo("vulkan: using {} (driver {:X})", properties.deviceName, properties.driverVersion);
 
+    // Vulkan 1.1 compat mode: below 1.3 the Vulkan 1.2/1.3 feature structs are not queried or enabled, and the entry points of
+    // Vulkan 1.3 (vkQueueSubmit2, vkCmdBeginRendering, ...) are not there to call
+    compat_vk11 = properties.apiVersion < VK_API_VERSION_1_3;
+    VkPhysicalDeviceFeatures supported{};
+    vkGetPhysicalDeviceFeatures(physical, &supported);
+    if (compat_vk11) {
+        LogWarn("vulkan: compat mode: the driver is Vulkan {}.{}.{}, the renderer is written for 1.3", VK_API_VERSION_MAJOR(properties.apiVersion),
+                VK_API_VERSION_MINOR(properties.apiVersion), VK_API_VERSION_PATCH(properties.apiVersion));
+        LogDeviceExtensions(physical);
+        LogInfo("vulkan: features: textureCompressionBC {}, ASTC_LDR {}, ETC2 {}, shaderInt16 {}, samplerAnisotropy {}, fillModeNonSolid {}, "
+                "shaderClipDistance {}, independentBlend {}",
+                supported.textureCompressionBC, supported.textureCompressionASTC_LDR, supported.textureCompressionETC2, supported.shaderInt16,
+                supported.samplerAnisotropy, supported.fillModeNonSolid, supported.shaderClipDistance, supported.independentBlend);
+    }
+
 #if defined(__APPLE__) || defined(__ANDROID__)
-    {
+    if (!compat_vk11) {
         /* MoltenVK on an older GPU (an Intel Mac's) can lack what the renderer needs, above all the bindless image array (Metal
            argument buffers tier 2): say which feature, not just that the device could not be created (docs/macos.md) */
         VkPhysicalDeviceVulkan13Features have13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
@@ -399,14 +443,23 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
     features12.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
     features12.scalarBlockLayout = VK_TRUE;
     VkPhysicalDeviceFeatures2 features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-    features.pNext = &features12;
-    features.features.samplerAnisotropy = VK_TRUE;
-    features.features.textureCompressionBC = VK_TRUE;
-    features.features.fillModeNonSolid = VK_TRUE;
-    features.features.shaderInt16 = VK_TRUE;
-    features.features.shaderClipDistance = VK_TRUE;
-    VkPhysicalDeviceFeatures supported{};
-    vkGetPhysicalDeviceFeatures(physical, &supported);
+    if (compat_vk11) {
+        /* only what the driver has, and no Vulkan 1.2/1.3 structs in the chain: a 1.1 device does not know them */
+        features.features.samplerAnisotropy = supported.samplerAnisotropy;
+        features.features.textureCompressionBC = supported.textureCompressionBC;
+        features.features.fillModeNonSolid = supported.fillModeNonSolid;
+        features.features.shaderInt16 = supported.shaderInt16;
+        features.features.shaderClipDistance = supported.shaderClipDistance;
+        texture_bc = supported.textureCompressionBC == VK_TRUE;
+    } else {
+        features.pNext = &features12;
+        features.features.samplerAnisotropy = VK_TRUE;
+        features.features.textureCompressionBC = VK_TRUE;
+        features.features.fillModeNonSolid = VK_TRUE;
+        features.features.shaderInt16 = VK_TRUE;
+        features.features.shaderClipDistance = VK_TRUE;
+        texture_bc = true;
+    }
     features.features.independentBlend = supported.independentBlend;
 
     const float priority = 1.0f;
@@ -423,7 +476,12 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
         hooks->DeviceSetup(instance, physical, device_extensions, features);
         hooks->DeviceQueues(physical, surface, queue_family, queue_infos);
     }
-    ray_query_supported = RayQuerySupport(physical, ray_query_missing);
+    if (compat_vk11) {
+        ray_query_supported = false;
+        ray_query_missing = "Vulkan 1.1 compat mode";
+    } else {
+        ray_query_supported = RayQuerySupport(physical, ray_query_missing);
+    }
     VkPhysicalDeviceFaultFeaturesEXT fault_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT};
 #ifdef __APPLE__
     VkPhysicalDevicePortabilitySubsetFeaturesKHR portability{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR};
@@ -514,6 +572,9 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
     volkLoadDevice(device);
     vkGetDeviceQueue(device, queue_family, 0, &queue);
     g_checkpoints = checkpoints && vkCmdSetCheckpointNV;
+    if (compat_vk11) {
+        LogInfo("vulkan: compat mode: device created with {} extensions, texture_bc {}", device_extensions.size(), texture_bc);
+    }
 
     const PipelineCacheIdentity cache_identity = PipelineCacheIdentityFor(properties);
     const std::filesystem::path cache_path = pipeline_cache_dir.empty() ? std::filesystem::path{} : PipelineCacheFilePath(pipeline_cache_dir, cache_identity);
@@ -554,7 +615,7 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
     VmaAllocatorCreateInfo allocator_info{};
     allocator_info.flags = (ray_query ? VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT : 0) |
                            (memory_budget ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT : 0);
-    allocator_info.vulkanApiVersion = VK_API_VERSION_1_3;
+    allocator_info.vulkanApiVersion = compat_vk11 ? VK_API_VERSION_1_1 : VK_API_VERSION_1_3;
     allocator_info.physicalDevice = physical;
     allocator_info.device = device;
     allocator_info.instance = instance;
@@ -990,15 +1051,23 @@ void Context::Submit(const std::function<void(VkCommandBuffer)>& record) {
     vkBeginCommandBuffer(cmd, &begin);
     record(cmd);
     vkEndCommandBuffer(cmd);
-    VkCommandBufferSubmitInfo cmd_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
-    cmd_info.commandBuffer = cmd;
-    VkSubmitInfo2 submit{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
-    submit.commandBufferInfoCount = 1;
-    submit.pCommandBufferInfos = &cmd_info;
     VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     VkFence fence;
     vkCreateFence(device, &fence_info, nullptr, &fence);
-    CheckDeviceLost(vkQueueSubmit2(queue, 1, &submit, fence), "one-time submit");
+    if (compat_vk11) {
+        /* Vulkan 1.1: no vkQueueSubmit2 */
+        VkSubmitInfo submit1{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        submit1.commandBufferCount = 1;
+        submit1.pCommandBuffers = &cmd;
+        CheckDeviceLost(vkQueueSubmit(queue, 1, &submit1, fence), "one-time submit");
+    } else {
+        VkCommandBufferSubmitInfo cmd_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
+        cmd_info.commandBuffer = cmd;
+        VkSubmitInfo2 submit{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+        submit.commandBufferInfoCount = 1;
+        submit.pCommandBufferInfos = &cmd_info;
+        CheckDeviceLost(vkQueueSubmit2(queue, 1, &submit, fence), "one-time submit");
+    }
     CheckDeviceLost(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX), "one-time submit wait");
     vkDestroyFence(device, fence, nullptr);
     vkFreeCommandBuffers(device, upload_pool_, 1, &cmd);
