@@ -47,8 +47,17 @@ jobs:
         working-directory: android
         env:
           GH_TOKEN: ${{ github.token }}
+          PT_KEYSTORE_B64: ${{ secrets.PT_KEYSTORE_B64 }}
+          PT_KEYSTORE_PASSWORD: ${{ secrets.PT_KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
+          # the permanent release key (android/app/build.gradle); without the secrets the APK gets the runner's debug key
+          if [ -n "$PT_KEYSTORE_B64" ]; then
+            echo "$PT_KEYSTORE_B64" | base64 -d > app/pt-release.jks
+            echo "signing with the permanent release key"
+          else
+            echo "::warning::PT_KEYSTORE_B64 is not set: the APK is signed with a one-off debug key and will not update over earlier installs"
+          fi
           set -o pipefail
           release=""
           if [ "$GITHUB_REF_TYPE" = tag ]; then

@@ -61,3 +61,6 @@ installer/*/obj/
 /android/build/
 /android/.gradle/
 /android/local.properties
+
+# the release signing key comes from CI secrets, never from the repository
+*.jks

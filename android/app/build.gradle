@@ -17,11 +17,24 @@ android {
             abiFilters 'arm64-v8a'
         }
     }
+    // One permanent key for every release, so a new APK installs over the old one and keeps the set-up game and the saves.
+    // CI writes it from the repository secrets PT_KEYSTORE_B64 and PT_KEYSTORE_PASSWORD (.github/workflows/android.yml); a
+    // build without them (a local one) falls back to the debug key, which differs per machine.
+    def ptKeystore = file('pt-release.jks')
+    signingConfigs {
+        ptRelease {
+            if (ptKeystore.exists()) {
+                storeFile ptKeystore
+                storePassword System.getenv('PT_KEYSTORE_PASSWORD')
+                keyAlias 'pt'
+                keyPassword System.getenv('PT_KEYSTORE_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
-            // signed with the debug key so the APK installs without a keystore of its own
-            signingConfig signingConfigs.debug
+            signingConfig ptKeystore.exists() ? signingConfigs.ptRelease : signingConfigs.debug
         }
     }
     sourceSets.main {
