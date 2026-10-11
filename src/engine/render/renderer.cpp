@@ -443,9 +443,14 @@ bool Renderer::BeginFrame(bool present) {
             swapchain_dirty_ = true;
             return false;
         }
+        // Android: the swapchain keeps preTransform IDENTITY on purpose (the picture would turn otherwise), and some drivers
+        // answer every frame with SUBOPTIMAL for it; rebuilding it each time cost a phone with an Adreno 710 most of its frame.
+        // OUT_OF_DATE and the window's own size changes still rebuild it.
+#ifndef __ANDROID__
         if (acquire == VK_SUBOPTIMAL_KHR) {
             swapchain_dirty_ = true;
         }
+#endif
     }
     vkResetFences(ctx_.device, 1, &frame.in_flight);
     vkResetCommandPool(ctx_.device, frame.pool, 0);
@@ -676,7 +681,12 @@ void Renderer::EndFrame(bool draw_ui) {
         const VkResult result = ctx_.QueuePresent(present);
         streamline::SetMarker(streamline::Marker::PresentEnd);
         ctx_.CheckDeviceLost(result, "present");
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_SURFACE_LOST_KHR) {
+#ifdef __ANDROID__
+        const bool rebuild = result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_ERROR_SURFACE_LOST_KHR;  // not SUBOPTIMAL (above)
+#else
+        const bool rebuild = result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_SURFACE_LOST_KHR;
+#endif
+        if (rebuild) {
             swapchain_dirty_ = true;
         }
     }
