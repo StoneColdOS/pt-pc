@@ -405,6 +405,7 @@ void NoteControllerEvent(const SDL_Event& event) {
     if (SDL_IsJoystickVirtual(which)) return;
     g_touch_visible = false;
     LogInfo("android: controller {} used, touch controls put away", which);
+    LogInfo("android: controller {} used, touch controls put away", which);
     CallActivityStatic("controllerUsed", "()V", [](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m); });
 }
 

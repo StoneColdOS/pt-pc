@@ -609,6 +609,10 @@ void InputDevice::ProcessEvent(const SDL_Event& event) {
 #endif
         if (Pad* pad = Find(event.gaxis.which); pad && (event.gaxis.value > kPromptAxis || event.gaxis.value < -kPromptAxis)) {
             UsePrompts(pad->style, pad->id);
+            // a stick pushed past half is the pad in use, as a button is: a menu opened from the mouse or from another pad
+            // follows it straight away (the touch controls' stick did nothing in the pause menu until a button was pressed)
+            last_from_gamepad_ = true;
+            pad->last_used = ++use_counter_;
         }
         break;
     default:
