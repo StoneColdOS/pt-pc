@@ -803,6 +803,9 @@ void ApplyFullscreen(App& app) {
 std::filesystem::path g_output_dir;
 
 std::filesystem::path UserDataDir() {
+#ifdef __ANDROID__
+    return pt::android::UserDataDir();
+#endif
 #ifdef __APPLE__
     /* inside the app bundle (ExecutableDir() is Contents/Resources) nothing may be written: a signed bundle, often in
        /Applications; the data folder is then the user's (docs/macos.md). A build folder keeps it next to pt. */

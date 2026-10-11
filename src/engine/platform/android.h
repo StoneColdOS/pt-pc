@@ -50,6 +50,9 @@ PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name);
 /* The bundled driver found no GPU it runs (an Adreno newer than Turnip knows, such as the 8xx): the context retries with
    the system's driver (vk_context.cpp), and LoadVulkanDriver is not asked again. */
 void ForceSystemVulkanDriver();
+/* Settings and saves: DataDir()/data, or the app's internal storage when that folder cannot be written (a file manager or
+   an earlier install made it under another owner, and Android then refuses the app its own folder). */
+std::filesystem::path UserDataDir();
 bool SystemVulkanDriverForced();
 
 /* The on-screen touch controls (android/.../TouchControls.java) as a virtual SDL gamepad, which the game reads like any

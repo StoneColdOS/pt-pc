@@ -374,6 +374,30 @@ bool g_system_driver_forced = false;
 }
 
 void ForceSystemVulkanDriver() { g_system_driver_forced = true; }
+
+std::filesystem::path UserDataDir() {
+    static const std::filesystem::path dir = [] {
+        const std::filesystem::path external = DataDir() / "data";
+        std::error_code ec;
+        std::filesystem::create_directories(external, ec);
+        const std::filesystem::path probe = external / ".pt-write-test";
+        bool writable = false;
+        {
+            std::ofstream out(probe, std::ios::binary | std::ios::trunc);
+            out << "ok";
+            writable = static_cast<bool>(out);
+        }
+        std::filesystem::remove(probe, ec);
+        if (writable) return external;
+        const char* internal = SDL_GetAndroidInternalStoragePath();
+        const std::filesystem::path fallback = std::filesystem::path(internal ? internal : ".") / "data";
+        std::filesystem::create_directories(fallback, ec);
+        LogWarn("android: {} cannot be written (another app or an earlier install owns it); settings and saves go to {}",
+                external.string(), fallback.string());
+        return fallback;
+    }();
+    return dir;
+}
 bool SystemVulkanDriverForced() { return g_system_driver_forced; }
 
 PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name) {
