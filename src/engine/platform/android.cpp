@@ -369,6 +369,13 @@ PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
 
 }  // namespace
 
+namespace {
+bool g_system_driver_forced = false;
+}
+
+void ForceSystemVulkanDriver() { g_system_driver_forced = true; }
+bool SystemVulkanDriverForced() { return g_system_driver_forced; }
+
 PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name) {
     // opened once per process: a second libadrenotools load would map the driver again
     static std::string chosen;
@@ -404,7 +411,6 @@ void NoteControllerEvent(const SDL_Event& event) {
     }
     if (SDL_IsJoystickVirtual(which)) return;
     g_touch_visible = false;
-    LogInfo("android: controller {} used, touch controls put away", which);
     LogInfo("android: controller {} used, touch controls put away", which);
     CallActivityStatic("controllerUsed", "()V", [](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m); });
 }

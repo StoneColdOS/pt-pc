@@ -16,7 +16,7 @@ please support the original project ([Patreon](https://patreon.com/loreanxavier)
 
 | | |
 | --- | --- |
-| **GPU** | Qualcomm **Adreno 6xx or 7xx** (Snapdragon). Tested on the Adreno 740 (Snapdragon 8 Gen 2) only. |
+| **GPU** | Qualcomm **Adreno 6xx or 7xx** (Snapdragon). Tested on the Adreno 740 (Snapdragon 8 Gen 2) only. Adreno 8xx (Snapdragon 8 Elite, 7s Gen 4 and newer) falls back to the device's own driver, untested so far. |
 | **Android** | 10 or newer, 64-bit |
 | **Not supported** | Mali, Immortalis, Samsung Xclipse, PowerVR, Google Tensor, MediaTek. The game needs a texture format those GPUs lack. |
 | **Controller** | A built-in or connected gamepad, or the on-screen touch controls. |

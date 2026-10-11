@@ -168,11 +168,29 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
 #endif
 #ifdef __ANDROID__
     /* the bundled Mesa Turnip driver through libadrenotools, unless driver.txt asks for the system's (docs/android.md) */
-    if (!loader) {
+    if (!loader && !android::SystemVulkanDriverForced()) {
         std::string driver;
         loader = android::LoadVulkanDriver(driver);
         LogInfo("vulkan: driver: {}", driver);
+    } else if (!loader) {
+        LogInfo("vulkan: driver: system driver (the bundled one cannot run this GPU)");
     }
+    // the bundled Turnip found no GPU it can run, or not one with everything the renderer needs: everything made so far goes,
+    // and Init starts over on the system's driver
+    auto retry_on_system_driver = [&]() -> bool {
+        if (!loader || android::SystemVulkanDriverForced()) return false;
+        LogWarn("vulkan: the bundled driver cannot run this GPU, trying the system's driver");
+        if (surface) vkDestroySurfaceKHR(instance, surface, nullptr);
+        surface = VK_NULL_HANDLE;
+        if (messenger) vkDestroyDebugUtilsMessengerEXT(instance, messenger, nullptr);
+        messenger = VK_NULL_HANDLE;
+        if (instance) vkDestroyInstance(instance, nullptr);
+        instance = VK_NULL_HANDLE;
+        physical = VK_NULL_HANDLE;
+        loader = nullptr;
+        android::ForceSystemVulkanDriver();
+        return true;
+    };
 #endif
     if (loader) {
         // Streamline's interposer (upscale/streamline.h): its proxies create the instance, the device and the swapchain
@@ -316,6 +334,9 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
         }
     }
     if (!physical) {
+#ifdef __ANDROID__
+        if (retry_on_system_driver()) return Init(window, validation, want_hdr);
+#endif
         LogError("vulkan: no Vulkan 1.3 device with a graphics queue");
         return false;
     }
@@ -353,7 +374,12 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
                 complete = false;
             }
         }
-        if (!complete) return false;
+        if (!complete) {
+#ifdef __ANDROID__
+            if (retry_on_system_driver()) return Init(window, validation, want_hdr);
+#endif
+            return false;
+        }
     }
 #endif
     VkPhysicalDeviceVulkan13Features features13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};

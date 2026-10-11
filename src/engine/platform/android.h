@@ -47,6 +47,10 @@ bool UnpackBundledAssets();
    through libadrenotools) or "system" (the device's own driver). Returns the driver's vkGetInstanceProcAddr, or null for
    the system loader; `name` says which one was taken. */
 PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name);
+/* The bundled driver found no GPU it runs (an Adreno newer than Turnip knows, such as the 8xx): the context retries with
+   the system's driver (vk_context.cpp), and LoadVulkanDriver is not asked again. */
+void ForceSystemVulkanDriver();
+bool SystemVulkanDriverForced();
 
 /* The on-screen touch controls (android/.../TouchControls.java) as a virtual SDL gamepad, which the game reads like any
    other pad: attached on the first touch, its sticks and buttons set from what the overlay last sent. Called once a frame
