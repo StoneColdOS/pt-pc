@@ -119,6 +119,12 @@ public:
     bool memory_budget = false;
     bool device_fault = false;
     bool checkpoints = false;
+    // Vulkan 1.1 compat mode (Android, a GPU whose driver is below Vulkan 1.3, such as the Mali-G57): the device is created with
+    // the core 1.0/1.1 features only, none of the 1.2/1.3 ones the renderer is written for (dynamic rendering, synchronization2,
+    // timeline semaphores, descriptor indexing). Those Vulkan 1.3 entry points are not loaded then, so code that runs in compat
+    // mode checks this flag first. texture_bc: the GPU samples BC1-BC7 textures (the Mali does not).
+    bool compat_vk11 = false;
+    bool texture_bc = true;
     // A lost device (VK_ERROR_DEVICE_LOST from a wait, submit, acquire or present) ends the game: the log gets where it was seen,
     // the device fault description and the last checkpoints, then a dump and a message box (crash_report.h). Any other
     // result returns.
