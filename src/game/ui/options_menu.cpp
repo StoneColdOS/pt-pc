@@ -105,6 +105,20 @@ MenuInput MapMenuInput(const InputState& input, uint32_t previous_held) {
     } else if (input.left_stick.x < -0.5f) {
         out.held_dirs |= kRawLeft;
     }
+    // the language list and the brightness gauge stepped on the d-pad alone (as on the PS4): a stick pushed past half steps
+    // them too, once per push (the touch controls have no d-pad; a controller's stick is the natural choice as well)
+    static uint32_t previous_stick_dirs = 0;
+    uint32_t stick_dirs = 0;
+    if (input.left_stick.y > 0.5f) stick_dirs |= kRawUp;
+    else if (input.left_stick.y < -0.5f) stick_dirs |= kRawDown;
+    if (input.left_stick.x > 0.5f) stick_dirs |= kRawRight;
+    else if (input.left_stick.x < -0.5f) stick_dirs |= kRawLeft;
+    const uint32_t stick_pressed = stick_dirs & ~previous_stick_dirs;
+    previous_stick_dirs = stick_dirs;
+    out.subtitle_up |= (stick_pressed & kRawUp) != 0;
+    out.subtitle_down |= (stick_pressed & kRawDown) != 0;
+    out.brightness_down |= (stick_pressed & kRawLeft) != 0;
+    out.brightness_up |= (stick_pressed & kRawRight) != 0;
     out.click = input.click;
     out.right_click = input.right_click;
     return out;
