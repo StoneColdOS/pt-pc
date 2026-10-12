@@ -4,6 +4,13 @@ work is theirs; this adds the Android layer.
 **Coming from v0.2.1 or newer?** Install right over it; your game files and saves stay. Coming from anything older, uninstall
 that first (one last time) and pick your .pkg again.
 
+What's new in v0.2.6:
+
+- Adreno 710, 720 and 722 phones (Snapdragon 7s Gen 2, 6 Gen 1, 6 Gen 3, 7 Gen 3, 7 Gen 4) now use a Turnip build made for
+  those GPUs (Vauzi-17's v4.2) when Graphics driver is set to "Bundled". This fixes the flickering green blocks and the
+  "graphics device was lost" crash seen on a Redmi Note 13 Pro. Other phones and handhelds keep the driver they had.
+- Auto resolution picks 50% on the Adreno 710, as intended.
+
 What's new in v0.2.5:
 
 - The bottom screen's clock now follows the hallway clock: when the hallway's turns to 00:00 in the later loops, so does
