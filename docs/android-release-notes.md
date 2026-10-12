@@ -4,6 +4,15 @@ work is theirs; this adds the Android layer.
 **Coming from v0.2.1?** Install right over it; your game files and saves stay. Coming from anything older, uninstall
 that first (one last time) and pick your .pkg again.
 
+What's new in v0.2.3:
+
+- **Settings > Display > Resolution**: Auto (picks a value for your GPU: 67% on fast chips like the Adreno 740, 50% on
+  slower ones like the Adreno 710), or 50% to 100% yourself. Applies instantly. Lower is faster.
+- **Settings > Display > Graphics driver**: the bundled Mesa Turnip (default) or your device's own driver, from the next
+  start. If you see flickering green blocks or other glitches, try your device's own and let us know if it helped.
+- These replace render_scale.txt and driver.txt, which Android often hid from the app when a file manager made them.
+- The log of the run before stays as pt-previous.log next to pt.log, so you can send both after changing a setting.
+
 What's new in v0.2.2:
 
 - The second screen is only ever a screen built into the device (like the AYN Thor's bottom one). A monitor or TV on
