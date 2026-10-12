@@ -1,9 +1,15 @@
 Experimental Android build of LoreanXavier's native P.T. PC port (https://github.com/LoreanXavier/pt-pc). All the real
 work is theirs; this adds the Android layer.
 
-**Please uninstall the old version first, one last time.** Earlier builds were each signed differently, so Android won't
-update over them. You'll pick your .pkg again after reinstalling. From v0.2.1 on, every release has the same signature and
-installs right over the previous one, keeping your game files and saves.
+**Coming from v0.2.1?** Install right over it; your game files and saves stay. Coming from anything older, uninstall
+that first (one last time) and pick your .pkg again.
+
+What's new in v0.2.2:
+
+- The second screen is only ever a screen built into the device (like the AYN Thor's bottom one). A monitor or TV on
+  USB-C or HDMI, a wireless display, or desktop modes like Motorola Smart Connect and Samsung DeX are left alone; before,
+  the clock could take over the monitor.
+- pt.log also records which screens the app found, for reports from other dual-screen devices.
 
 What's new in v0.2.1:
 

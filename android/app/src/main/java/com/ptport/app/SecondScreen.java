@@ -39,6 +39,17 @@ import android.view.WindowManager;
    the loop and the line through update (src/engine/platform/android.cpp). */
 final class SecondScreen {
     private static final String TAG = "pt";
+
+    // into pt.log too (src/engine/platform/android.cpp), where players' reports carry it; logcat until the game is loaded
+    private static native void nativeLog(String message);
+
+    private static void log(String message) {
+        Log.i(TAG, message);
+        try {
+            nativeLog(message);
+        } catch (Throwable ignored) {
+        }
+    }
     // after a line ends, the text layout stays this long before the large clock comes back, so the screen does not jump
     // between the two in the pauses of a conversation or a broadcast
     private static final long HOLD_LAYOUT_MS = 8_000;
@@ -139,13 +150,13 @@ final class SecondScreen {
         if (mode.equals("off")) return;
         Display display = findSecondDisplay();
         if (display == null) return;
-        Log.i(TAG, "second screen: display " + display.getDisplayId() + " (" + display.getName() + "), mode " + mode);
+        log("second screen: display " + display.getDisplayId() + " (" + display.getName() + "), mode " + mode);
         try {
             presentation = new BottomScreen(activity, display);
             presentation.show();
             return;
         } catch (Throwable t) {
-            Log.w(TAG, "second screen: no Presentation on display " + display.getDisplayId() + " (" + t + "), trying an activity");
+            log("second screen: no Presentation on display " + display.getDisplayId() + " (" + t + "), trying an activity");
             presentation = null;
             view = null;
         }
@@ -157,7 +168,7 @@ final class SecondScreen {
             activity.startActivity(intent, options.toBundle());
             usingActivity = true;
         } catch (Throwable t) {
-            Log.w(TAG, "second screen: cannot show anything on display " + display.getDisplayId() + " (" + t + ")");
+            log("second screen: cannot show anything on display " + display.getDisplayId() + " (" + t + ")");
         }
     }
 
@@ -218,7 +229,7 @@ final class SecondScreen {
             result = !(name.contains("hdmi") || name.contains("external") || name.contains("wireless") || name.contains("wifi")
                     || name.contains("virtual") || name.contains("overlay") || name.contains("dex") || name.contains("cast"));
         }
-        Log.i(TAG, "second screen: display " + d.getDisplayId() + " (" + d.getName() + ") type " + type + (result ? ", built in" : ", external: not used"));
+        log("second screen: display " + d.getDisplayId() + " (" + d.getName() + ") type " + type + (result ? ", built in" : ", external: not used"));
         return result;
     }
 

@@ -520,6 +520,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ptport_app_TouchControls_nativeState(
     pt::android::g_touch_used.store(true, std::memory_order_relaxed);
 }
 
+extern "C" JNIEXPORT void JNICALL Java_com_ptport_app_SecondScreen_nativeLog(JNIEnv* env, jclass, jstring message) {
+    if (!message) return;
+    const char* chars = env->GetStringUTFChars(message, nullptr);
+    if (chars) pt::LogInfo("android: {}", chars);
+    env->ReleaseStringUTFChars(message, chars);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_ptport_app_TouchControls_nativeVisible(JNIEnv*, jclass, jboolean visible) {
     pt::android::g_touch_visible.store(visible, std::memory_order_relaxed);
 }
