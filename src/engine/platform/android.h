@@ -53,6 +53,10 @@ void ForceSystemVulkanDriver();
 /* Settings and saves: DataDir()/data, or the app's internal storage when that folder cannot be written (a file manager or
    an earlier install made it under another owner, and Android then refuses the app its own folder). */
 std::filesystem::path UserDataDir();
+/* The APK's versionName (v0.2.1, or test-<run>-<commit> for a test build) and the device ("AYN Thor, Android 14"), for the
+   top of pt.log: the game's own version line is the PC port's. */
+std::string AppVersion();
+std::string DeviceName();
 bool SystemVulkanDriverForced();
 
 /* The on-screen touch controls (android/.../TouchControls.java) as a virtual SDL gamepad, which the game reads like any

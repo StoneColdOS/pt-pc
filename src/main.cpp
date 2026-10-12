@@ -5123,6 +5123,7 @@ int main(int argc, char** argv) {
     pt::LogSetFile(pt::android::LogDir() / "pt.log");
     pt::android::InstallCrashLog(pt::android::LogDir() / "pt-crash.txt");
     pt::LogInfo("android: log in {}", pt::android::LogDir().string());
+    pt::LogInfo("android: app {} on {}", pt::android::AppVersion(), pt::android::DeviceName());
     pt::android::UnpackBundledAssets();
 #endif
     App app;

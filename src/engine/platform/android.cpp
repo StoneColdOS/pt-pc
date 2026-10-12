@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <android/log.h>
+#include <sys/system_properties.h>
 
 #include "engine/core/log.h"
 
@@ -374,6 +375,42 @@ bool g_system_driver_forced = false;
 }
 
 void ForceSystemVulkanDriver() { g_system_driver_forced = true; }
+
+std::string AppVersion() {
+    auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
+    auto* activity = static_cast<jobject>(SDL_GetAndroidActivity());
+    std::string out = "unknown";
+    if (!env || !activity) return out;
+    jclass context = env->GetObjectClass(activity);
+    jobject manager = env->CallObjectMethod(activity, env->GetMethodID(context, "getPackageManager", "()Landroid/content/pm/PackageManager;"));
+    auto* name = static_cast<jstring>(env->CallObjectMethod(activity, env->GetMethodID(context, "getPackageName", "()Ljava/lang/String;")));
+    if (manager && name && !env->ExceptionCheck()) {
+        jclass pm = env->GetObjectClass(manager);
+        jobject info = env->CallObjectMethod(manager, env->GetMethodID(pm, "getPackageInfo", "(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;"), name, 0);
+        if (info && !env->ExceptionCheck()) {
+            jclass pi = env->GetObjectClass(info);
+            auto* version = static_cast<jstring>(env->GetObjectField(info, env->GetFieldID(pi, "versionName", "Ljava/lang/String;")));
+            if (version) {
+                const char* chars = env->GetStringUTFChars(version, nullptr);
+                out = chars ? chars : out;
+                env->ReleaseStringUTFChars(version, chars);
+            }
+        }
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(activity);
+    return out;
+}
+
+std::string DeviceName() {
+    auto property = [](const char* key) {
+        char value[PROP_VALUE_MAX] = {};
+        __system_property_get(key, value);
+        return std::string(value);
+    };
+    return property("ro.product.manufacturer") + " " + property("ro.product.model") + ", SoC " + property("ro.soc.model") +
+           ", Android " + property("ro.build.version.release");
+}
 
 std::filesystem::path UserDataDir() {
     static const std::filesystem::path dir = [] {
