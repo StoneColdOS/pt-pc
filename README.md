@@ -78,7 +78,7 @@ Android often hides files made by a file manager from other apps.)
 
 ## Dual-screen handhelds
 
-On an AYN Thor (or a similar handheld with a second screen) the bottom screen shows the hallway's clock, frozen at 23:59,
+On an AYN Thor (or a similar handheld with a second screen) the bottom screen shows the hallway's clock, frozen at 23:59 (or 00:00 when the hallway's turns),
 with the loop you're on, and the radio and other subtitle lines as they play (the whole broadcast, even the lines the
 main screen skips on repeat loops, with *static* marking where the voice drops out). Change it in the game's settings under
 **Display > Second screen**: clock and subtitles, clock only, dim clock, or off.

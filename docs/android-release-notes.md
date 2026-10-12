@@ -4,6 +4,12 @@ work is theirs; this adds the Android layer.
 **Coming from v0.2.1 or newer?** Install right over it; your game files and saves stay. Coming from anything older, uninstall
 that first (one last time) and pick your .pkg again.
 
+What's new in v0.2.5:
+
+- The bottom screen's clock now follows the hallway clock: when the hallway's turns to 00:00 in the later loops, so does
+  the one on the bottom screen.
+- B backs out of the pause menu (cancelling the quit question first, if it's up).
+
 What's new in v0.2.4:
 
 - Newer Adreno 8xx GPUs work (confirmed on a Snapdragon 7s Gen 4 tablet) through the device's own driver.
