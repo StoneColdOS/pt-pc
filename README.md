@@ -4,24 +4,26 @@ An unofficial Android build of **[LoreanXavier's native PC port of P.T.](https:/
 Snapdragon handhelds and phones. It runs the same native code as the PC port, not an emulator, and reads everything from
 your own copy of the game.
 
-**All of the real work is LoreanXavier's.** They rebuilt P.T. in C++ and wrote the Vulkan renderer. This fork only adds the
-Android layer: the APK, the Snapdragon driver setup, storage, screen rotation and handheld tuning. If you enjoy this,
+**All of the real work is LoreanXavier's.** They rebuilt P.T. in C++ and wrote the Vulkan renderer, and gave their blessing
+to this Android build. This fork only adds the Android layer: the APK, the Snapdragon driver setup, the setup from your
+.pkg, touch controls, the microphone, the AYN Thor's second screen and handheld tuning. If you enjoy this,
 please support the original project ([Patreon](https://patreon.com/loreanxavier)). Their original README is in
 [README_UPSTREAM.md](README_UPSTREAM.md).
 
-> This is an early test build, developed and tested on **one device**, an AYN Thor Max. Expect rough edges and save
-> often. It contains **no game files**, and nothing here helps you get them.
+> This is an experimental build, made on an AYN Thor Max and tested by players on phones and tablets from Xiaomi,
+> Motorola and others. Expect rough edges. It contains **no game files**, and nothing here helps you get them.
 
 ## Will it run on my device?
 
 | | |
 | --- | --- |
-| **GPU** | Qualcomm **Adreno 6xx or 7xx** (Snapdragon). Tested on the Adreno 740 (Snapdragon 8 Gen 2) only. Adreno 8xx (Snapdragon 8 Elite, 7s Gen 4 and newer) runs on the device's own driver, picked automatically (confirmed on a 7s Gen 4 tablet). |
+| **GPU** | Qualcomm **Adreno 6xx, 7xx or 8xx** (Snapdragon). The right graphics driver is picked for you: tested on the Adreno 740 (Snapdragon 8 Gen 2, AYN Thor), 710 (7s Gen 2) and 810 (7s Gen 4). |
 | **Android** | 10 or newer, 64-bit |
 | **Not supported** | Mali, Immortalis, Samsung Xclipse, PowerVR, Google Tensor, MediaTek. The game needs a texture format those GPUs lack. |
 | **Controller** | A built-in or connected gamepad, or the on-screen touch controls. |
 
-On the AYN Thor it runs at about 60 fps in the start room and roughly 25 to 35 fps in the heavier later loops.
+On the AYN Thor it runs at about 60 fps in the start room and roughly 25 to 35 fps in the heavier later loops. A
+mid-range phone (Adreno 710) gets around 20 to 25 fps at 50% resolution.
 
 ## What you need
 
@@ -39,6 +41,9 @@ A store (PlayStation Store) PKG will not work: it is encrypted for the console t
 2. Start P.T. and choose **Choose your P.T. .pkg**, then pick your package in Android's file picker. Setting up takes a
    minute or two and needs about 1.4 GB free. Afterwards you can let the app delete the `.pkg` to get that space back.
 3. That's it: from then on the game starts straight away.
+
+**Updating:** from v0.2.1 on, a new APK installs right over the old one and keeps your game files and saves. Coming from
+v0.2.0 or older, uninstall that first (one time only) and pick your .pkg again.
 
 If you have the three extracted files instead, choose **I already have the extracted files**, copy them into your Download
 folder (loose or in a `CUSA01127` folder), and allow **All files access** when asked.
@@ -63,9 +68,10 @@ The app writes its log to **Download/PT-logs**: `pt.log` for the latest run, `pt
 `pt-crash.txt` after a crash. Attach those when you report
 a problem, with your device and chip. From a computer, `adb pull /storage/emulated/0/Download/PT-logs` grabs them.
 
-Two settings help when the game runs slowly or looks wrong (**Settings > Display**):
+These settings help when the game runs slowly or looks wrong (**Settings > Display**):
 
-- **Resolution**: Auto picks a value for your GPU; 50% is the fastest.
+- **Resolution**: Auto picks a value for your GPU; 50% is the fastest. **Settings > Graphics > Image clarity** sharpens a
+  lower resolution at almost no cost.
 - **Graphics driver**: the bundled Mesa Turnip (default), your device's own driver, or one you imported, from the next
   start. If the chosen one cannot run your GPU, the game falls back to the others by itself.
 - **Import a driver**: pick an AdrenoTools driver `.zip` (for example a Turnip build from
