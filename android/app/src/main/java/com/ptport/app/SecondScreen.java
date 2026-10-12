@@ -209,6 +209,7 @@ final class SecondScreen {
     // reflection: 1 internal, 2 external (HDMI, USB-C), 3 Wi-Fi, 4 overlay, 5 virtual. Without it, the name and the
     // presentation flag of an external display decide.
     private static final int TYPE_INTERNAL = 1;
+    private static final java.util.Set<String> LOGGED = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
 
     private static int displayType(Display d) {
         try {
@@ -229,7 +230,9 @@ final class SecondScreen {
             result = !(name.contains("hdmi") || name.contains("external") || name.contains("wireless") || name.contains("wifi")
                     || name.contains("virtual") || name.contains("overlay") || name.contains("dex") || name.contains("cast"));
         }
-        log("second screen: display " + d.getDisplayId() + " (" + d.getName() + ") type " + type + (result ? ", built in" : ", external: not used"));
+        // once per display and answer: the settings page asks several times a second
+        String line = "second screen: display " + d.getDisplayId() + " (" + d.getName() + ") type " + type + (result ? ", built in" : ", external: not used");
+        if (LOGGED.add(line)) log(line);
         return result;
     }
 
