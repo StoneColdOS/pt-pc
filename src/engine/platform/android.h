@@ -23,7 +23,14 @@ bool HasAllFilesAccess();
 std::filesystem::path LogDir();
 
 /* The scene's render size against the screen: 0.667 unless LogDir()/render_scale.txt holds another (0.25 to 1). */
-float RenderScale();
+/* How much of the screen's resolution the game renders at (the compositor scales it up for free). The setting
+   (display.android_resolution) picks a share or Auto, which goes by the GPU: 0.667 on the fast Adreno parts (730 and up,
+   the 8xx ones from 825), 0.58 in the middle, 0.5 on the rest. render_scale.txt in Download/PT-logs still wins when present. */
+float RenderScale(const char* gpu_name);
+/* The setting: 0 Auto, then kResolutionShares[1..]. A change rebuilds the swapchain at the next frame (main.cpp). */
+inline constexpr float kResolutionShares[] = {0.0f, 0.5f, 0.58f, 0.667f, 0.75f, 0.85f, 1.0f};
+inline constexpr int kResolutionChoices = static_cast<int>(sizeof(kResolutionShares) / sizeof(kResolutionShares[0]));
+void SetResolutionSetting(int index);
 
 /* The second screen of a dual-screen handheld (AYN Thor and others; android/.../SecondScreen.java): the loop the player is on
    and the subtitle line playing now (empty for none), sent on only when one of them changes. Does nothing without one. */

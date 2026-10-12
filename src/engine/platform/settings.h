@@ -26,6 +26,8 @@ struct AppSettings {
         int second_screen = 0;
         // the on-screen touch controls (Android; TouchControls.java): 0 shown on a touch, 1 off
         int touch_controls = 0;
+        // the render resolution on Android (android.h kResolutionShares): 0 auto by GPU, 1 50%, 2 58%, 3 67%, 4 75%, 5 85%, 6 100%
+        int android_resolution = 0;
     } display;
     struct Input {
         float mouse_sensitivity = 1.0f;

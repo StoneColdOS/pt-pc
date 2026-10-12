@@ -103,6 +103,7 @@ bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out) {
     Read(v, "display.letterbox", out.display.letterbox);
     Read(v, "display.second_screen", out.display.second_screen);
     Read(v, "display.touch_controls", out.display.touch_controls);
+    Read(v, "display.android_resolution", out.display.android_resolution);
     Read(v, "input.mouse_sensitivity", out.input.mouse_sensitivity);
     Read(v, "input.gamepad_sensitivity", out.input.gamepad_sensitivity);
     Read(v, "input.gamepad_dead_zone", out.input.gamepad_dead_zone);
@@ -237,7 +238,9 @@ bool SaveAppSettings(const std::filesystem::path& path, const AppSettings& s) {
          << "; a dual-screen handheld's bottom screen (Android): 0 clock and subtitles, 1 clock, 2 dim clock, 3 off\n"
          << "second_screen = " << s.display.second_screen << "\n"
          << "; the on-screen touch controls (Android): 0 shown on a touch, 1 off\n"
-         << "touch_controls = " << s.display.touch_controls << "\n\n"
+         << "touch_controls = " << s.display.touch_controls << "\n"
+         << "; the render resolution (Android): 0 auto by GPU, 1 50%, 2 58%, 3 67%, 4 75%, 5 85%, 6 100%\n"
+         << "android_resolution = " << s.display.android_resolution << "\n\n"
          << "[input]\n"
          << "mouse_sensitivity = " << s.input.mouse_sensitivity << "\n"
          << "; gamepad turn speed after the original stick response, 1 keeps the original\n"

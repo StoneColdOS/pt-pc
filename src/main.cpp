@@ -1933,6 +1933,15 @@ public:
             if (sizes[i] == glm::ivec2(s.display.width, s.display.height)) resolution.value = static_cast<int>(i);
         }
         resolution.wrap = false;
+#ifdef __ANDROID__
+        // always full screen: the row picks the render resolution instead (android.h kResolutionShares)
+        resolution = Row(kResolution, "pc_resolution", {"pc_resolution_auto"}, std::clamp(s.display.android_resolution, 0, pt::android::kResolutionChoices - 1),
+                         "pc_note_android_resolution");
+        for (int i = 1; i < pt::android::kResolutionChoices; ++i) {
+            resolution.values.push_back(std::format("{}%", static_cast<int>(std::lround(pt::android::kResolutionShares[i] * 100.0f))));
+        }
+        resolution.wrap = false;
+#endif
         display.rows.push_back(std::move(resolution));
         const bool dlssg_vsync = pt::streamline::Active() && pt::streamline::FrameGenNeedsVsyncOff() &&
                                  app_.scene.upscale.frame_generation == pt::FrameGenKind::Dlss;
@@ -2199,6 +2208,12 @@ public:
             ApplyFullscreen(app_);
             break;
         case kResolution: {
+#ifdef __ANDROID__
+            s.display.android_resolution = std::clamp(value, 0, pt::android::kResolutionChoices - 1);
+            pt::android::SetResolutionSetting(s.display.android_resolution);
+            app_.renderer.Resize(0, 0);  // the swapchain takes the new size at the next frame
+            break;
+#endif
             const std::vector<glm::ivec2> sizes = WindowSizes();
             if (value < 0 || value >= static_cast<int>(sizes.size())) {
                 return;
@@ -5353,6 +5368,7 @@ int main(int argc, char** argv) {
         save_now = save_now || android_defaults_applied;
         pt::android::SetSecondScreenMode(app.settings.display.second_screen);
         pt::android::SetTouchControlsEnabled(app.settings.display.touch_controls == 0);
+        pt::android::SetResolutionSetting(app.settings.display.android_resolution);
 #endif
         if (save_now) {
             pt::SaveAppSettings(app.settings_path, app.settings);

@@ -64,7 +64,8 @@ a problem, with your device and chip. From a computer, `adb pull /storage/emulat
 
 Two optional files in that folder for tinkering:
 
-- `render_scale.txt`: the render size against the screen, `0.667` by default. `0.5` is faster, `1` is sharpest.
+- `render_scale.txt`: overrides the **Display > Resolution** setting (a number like `0.5`). The setting is easier: Auto
+  picks a value for your GPU, and 50% is the fastest choice.
 - `driver.txt`: `turnip` (default, the bundled Mesa Turnip driver), `system` (your device's own driver), or the file name
   of another driver's `.so` placed in the same folder.
 

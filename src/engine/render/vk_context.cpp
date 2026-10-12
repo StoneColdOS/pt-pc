@@ -746,7 +746,7 @@ bool Context::CreateSwapchain(uint32_t width, uint32_t height, bool vsync, bool 
         } else if (caps.currentTransform & (VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR | VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR)) {
             logical = {extent.height, extent.width};
         }
-        static const float scale = android::RenderScale();
+        const float scale = android::RenderScale(properties.deviceName);
         const VkExtent2D scaled{std::max(2u, static_cast<uint32_t>(logical.width * scale) & ~1u),
                                 std::max(2u, static_cast<uint32_t>(logical.height * scale) & ~1u)};
         extent.width = std::clamp(scaled.width, caps.minImageExtent.width, caps.maxImageExtent.width);

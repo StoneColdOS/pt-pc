@@ -129,17 +129,51 @@ std::filesystem::path LogDir() {
     return dir;
 }
 
-float RenderScale() {
-    float scale = 0.667f;
+namespace {
+int g_resolution_setting = 0;
+}
+
+void SetResolutionSetting(int index) { g_resolution_setting = std::clamp(index, 0, kResolutionChoices - 1); }
+
+namespace {
+
+// the Adreno number in a device name ("Adreno (TM) 740", "Turnip Adreno (TM) 710"), 0 when there is none
+int AdrenoNumber(const char* name) {
+    const std::string text = name ? name : "";
+    const size_t at = text.find("Adreno");
+    if (at == std::string::npos) return 0;
+    for (size_t i = at; i < text.size(); ++i) {
+        if (std::isdigit(static_cast<unsigned char>(text[i]))) return std::atoi(text.c_str() + i);
+    }
+    return 0;
+}
+
+float AutoScale(const char* gpu_name) {
+    const int adreno = AdrenoNumber(gpu_name);
+    if (adreno == 0) return 0.58f;
+    if (adreno >= 825 || (adreno >= 730 && adreno < 800)) return 0.667f;
+    if (adreno >= 800 || adreno >= 720 || adreno >= 650) return 0.58f;
+    return 0.5f;
+}
+
+}  // namespace
+
+float RenderScale(const char* gpu_name) {
     std::ifstream in(LogDir() / "render_scale.txt");
     std::string line;
     if (std::getline(in, line)) {
         line = Trim(line);
         char* end = nullptr;
         const float value = std::strtof(line.c_str(), &end);
-        if (end != line.c_str()) scale = std::clamp(value, 0.25f, 1.0f);
+        if (end != line.c_str()) {
+            const float scale = std::clamp(value, 0.25f, 1.0f);
+            LogInfo("android: render scale {:.3f} (render_scale.txt)", scale);
+            return scale;
+        }
     }
-    LogInfo("android: render scale {:.3f}", scale);
+    const float share = kResolutionShares[std::clamp(g_resolution_setting, 0, kResolutionChoices - 1)];
+    const float scale = share > 0.0f ? share : AutoScale(gpu_name);
+    LogInfo("android: render scale {:.3f} ({} on {})", scale, share > 0.0f ? "setting" : "auto", gpu_name ? gpu_name : "?");
     return scale;
 }
 
