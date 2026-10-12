@@ -88,6 +88,10 @@ main screen skips on repeat loops, with *static* marking where the voice drops o
 - The speech recognizer is new on Android: if it doesn't hear you, hold both triggers.
 - The PC extras that need a desktop (upscalers, ray tracing, VR, enhanced textures, loop previews) are off.
 
+## Maintaining
+
+How releases, the signing key, logs and the known fixes work: [docs/MAINTAINING.md](docs/MAINTAINING.md).
+
 ## Building
 
 Every push to the `android-port` branch builds the APK on GitHub Actions (`.github/workflows/android.yml`). Locally:
