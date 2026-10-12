@@ -29,7 +29,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
 
-/* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen 23:59 digital clock, white with a cold blue
+/* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen 23:59 digital clock (00:00 on loops 12 to 14, as in the hallway), white with a cold blue
    glow like the hallway's own, the loop the player is on, and (the default look) the subtitle line playing now. Drawn with Android's own Canvas, so the game's GPU
    time is not touched. Shown as a Presentation on the second display (an activity on that display where the system refuses
    a Presentation); nothing happens on a device with one screen.
@@ -432,7 +432,8 @@ final class SecondScreen {
         }
 
         private void drawClock(Canvas canvas, float x, float y, float height, boolean dim) {
-            String time = "2359";
+            // the hallway's clock reads 00:00 on loops 12 to 14 (the game swaps its 23:59 model for another there), 23:59 elsewhere
+            String time = loopNumber >= 12 && loopNumber <= 14 ? "0000" : "2359";
             float digit = height * 0.6f, gap = height * 14f / 160f, colon = height * 22f / 160f;
             float unit = height / 100f;
             // glow in screen pixels: a wide soft blue halo under a tight one on near-white segments (the matrix places the
