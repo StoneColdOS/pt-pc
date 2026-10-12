@@ -1,6 +1,20 @@
 Experimental Android build of LoreanXavier's native P.T. PC port (https://github.com/LoreanXavier/pt-pc). All the real
 work is theirs; this adds the Android layer.
 
+**Please uninstall the old version first, one last time.** Earlier builds were each signed differently, so Android won't
+update over them. You'll pick your .pkg again after reinstalling. From v0.2.1 on, every release has the same signature and
+installs right over the previous one, keeping your game files and saves.
+
+What's new in v0.2.1:
+
+- Phones and tablets with a newer Adreno GPU (8xx, such as the Snapdragon 7s Gen 4 and 8 Elite) now fall back to the
+  device's own graphics driver when the bundled one can't run them. Untested so far; logs welcome.
+- Much smoother on some phones: the game no longer rebuilds its display setup every frame when the driver asks it to
+  (this cost an Adreno 710 phone most of its frame rate).
+- If the app's save folder can't be written (left behind by an earlier install or made by a file manager), settings and
+  saves go to the app's private storage instead of the game refusing to start.
+- pt.log now says which app version and device it came from.
+
 What's new in v0.2.0:
 
 - Say the name at the end out loud. The game listens through the microphone, recognized on your device with whisper.cpp
