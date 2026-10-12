@@ -131,7 +131,10 @@ std::filesystem::path LogDir() {
 
 namespace {
 int g_resolution_setting = 0;
+int g_driver_setting = 0;  // display.android_driver: 0 bundled Turnip, 1 the device's own
 }
+
+void SetDriverSetting(int value) { g_driver_setting = std::clamp(value, 0, 1); }
 
 void SetResolutionSetting(int index) { g_resolution_setting = std::clamp(index, 0, kResolutionChoices - 1); }
 
@@ -336,6 +339,7 @@ namespace {
 
 // driver.txt: in Download/PT-logs (reachable with a file manager), else in the app's own folder
 std::string DriverChoice() {
+    // driver.txt first (a file manager's file in Download is often unreadable to the app, so the setting is the usual way)
     for (const std::filesystem::path& file : {LogDir() / "driver.txt", DataDir() / "driver.txt"}) {
         std::ifstream in(file);
         std::string line;
@@ -345,7 +349,7 @@ std::string DriverChoice() {
             return line;
         }
     }
-    return "turnip";
+    return g_driver_setting == 1 ? "system" : "turnip";
 }
 
 PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
@@ -353,7 +357,7 @@ PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
     std::string lower = choice;
     std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (lower == "system") {
-        name = "system driver (driver.txt)";
+        name = g_driver_setting == 1 ? "system driver (setting)" : "system driver (driver.txt)";
         return nullptr;
     }
     const std::string lib_dir = NativeLibraryDir();

@@ -62,12 +62,14 @@ the microphone in the game's settings.
 The app writes its log to **Download/PT-logs**: `pt.log`, plus `pt-crash.txt` after a crash. Attach those when you report
 a problem, with your device and chip. From a computer, `adb pull /storage/emulated/0/Download/PT-logs` grabs them.
 
-Two optional files in that folder for tinkering:
+Two settings help when the game runs slowly or looks wrong (**Settings > Display**):
 
-- `render_scale.txt`: overrides the **Display > Resolution** setting (a number like `0.5`). The setting is easier: Auto
-  picks a value for your GPU, and 50% is the fastest choice.
-- `driver.txt`: `turnip` (default, the bundled Mesa Turnip driver), `system` (your device's own driver), or the file name
-  of another driver's `.so` placed in the same folder.
+- **Resolution**: Auto picks a value for your GPU; 50% is the fastest.
+- **Graphics driver**: the bundled Mesa Turnip (default) or your device's own driver, from the next start. Try the
+  device's own if you see flickering blocks or other glitches, and tell us if it helped.
+
+(The older `render_scale.txt` and `driver.txt` files in Download/PT-logs still work, but only if the app can read them:
+Android often hides files made by a file manager from other apps.)
 
 ## Dual-screen handhelds
 

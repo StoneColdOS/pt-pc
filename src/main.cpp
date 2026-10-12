@@ -1963,6 +1963,8 @@ public:
                                        {"pc_second_screen_subtitles", "pc_second_screen_clock", "pc_second_screen_dim", "pc_off"},
                                        std::clamp(s.display.second_screen, 0, 3), "pc_note_second_screen"));
         }
+        display.rows.push_back(Row(kGraphicsDriver, "pc_graphics_driver", {"pc_graphics_driver_turnip", "pc_graphics_driver_system"},
+                                   std::clamp(s.display.android_driver, 0, 1), "pc_note_graphics_driver"));
         display.rows.push_back(Row(kTouchControls, "pc_touch_controls", {"pc_touch_controls_auto", "pc_off"},
                                    std::clamp(s.display.touch_controls, 0, 1), "pc_note_touch_controls"));
 #endif
@@ -2280,6 +2282,9 @@ public:
 #ifdef __ANDROID__
             pt::android::SetSecondScreenMode(s.display.second_screen);
 #endif
+            break;
+        case kGraphicsDriver:
+            s.display.android_driver = std::clamp(value, 0, 1);
             break;
         case kTouchControls:
             s.display.touch_controls = std::clamp(value, 0, 1);
@@ -2733,7 +2738,7 @@ private:
         kLoopBrowser, kExtras, kFreecam, kPhotoMode, kStreetWalk, kStreetRestart, kStreetLeave, kLoopLock, kThirdPerson, kSpeedrun, kLiveSplit, kRunMenu, kRunReal, kRunGame, kRunBest,
         kArchive, kArchiveLock,
         kVr, kVrMode, kVrFlashlight, kVrTurn, kVrHeight, kVrWorldScale,
-        kSecondScreen, kTouchControls,
+        kSecondScreen, kTouchControls, kGraphicsDriver,
         kLoopFirst = 1000,
         kRunSplitFirst = 3000,
         kModFirst = 2000,
@@ -5369,6 +5374,7 @@ int main(int argc, char** argv) {
         pt::android::SetSecondScreenMode(app.settings.display.second_screen);
         pt::android::SetTouchControlsEnabled(app.settings.display.touch_controls == 0);
         pt::android::SetResolutionSetting(app.settings.display.android_resolution);
+        pt::android::SetDriverSetting(app.settings.display.android_driver);
 #endif
         if (save_now) {
             pt::SaveAppSettings(app.settings_path, app.settings);

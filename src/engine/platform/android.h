@@ -31,6 +31,9 @@ float RenderScale(const char* gpu_name);
 inline constexpr float kResolutionShares[] = {0.0f, 0.5f, 0.58f, 0.667f, 0.75f, 0.85f, 1.0f};
 inline constexpr int kResolutionChoices = static_cast<int>(sizeof(kResolutionShares) / sizeof(kResolutionShares[0]));
 void SetResolutionSetting(int index);
+/* The graphics driver setting (display.android_driver): 0 the bundled Turnip, 1 the device's own. Read at start, before the
+   Vulkan context; a change applies at the next start. driver.txt, when the app can read it, wins. */
+void SetDriverSetting(int value);
 
 /* The second screen of a dual-screen handheld (AYN Thor and others; android/.../SecondScreen.java): the loop the player is on
    and the subtitle line playing now (empty for none), sent on only when one of them changes. Does nothing without one. */
