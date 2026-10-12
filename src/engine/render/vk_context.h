@@ -119,6 +119,10 @@ public:
     bool memory_budget = false;
     bool device_fault = false;
     bool checkpoints = false;
+#ifdef __ANDROID__
+    // Init is starting over on a fallback driver (vk_context.cpp)
+    bool android_retry_ = false;
+#endif
     // A lost device (VK_ERROR_DEVICE_LOST from a wait, submit, acquire or present) ends the game: the log gets where it was seen,
     // the device fault description and the last checkpoints, then a dump and a message box (crash_report.h). Any other
     // result returns.

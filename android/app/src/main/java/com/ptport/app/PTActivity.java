@@ -1,6 +1,9 @@
 package com.ptport.app;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.widget.Toast;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
@@ -26,6 +29,46 @@ public class PTActivity extends SDLActivity {
         activity.runOnUiThread(() -> {
             if (activity.touchControls != null) activity.touchControls.setAllowed(enabled);
         });
+    }
+
+    private static final int PICK_DRIVER = 41;
+
+    // from the game (Settings > Display > Import a driver; src/engine/platform/android.cpp RequestDriverImport)
+    @SuppressWarnings("unused")
+    public static void importDriver() {
+        final PTActivity activity = current;
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            try {
+                activity.startActivityForResult(intent, PICK_DRIVER);
+            } catch (Exception e) {
+                Toast.makeText(activity, "No file picker on this device.", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == PICK_DRIVER) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                final Uri uri = data.getData();
+                new Thread(() -> {
+                    String message;
+                    try {
+                        message = "Driver imported (" + DriverImport.importFrom(this, uri) + "). Restart P.T. to use it.";
+                    } catch (Exception e) {
+                        message = "Could not import that driver: " + e.getMessage();
+                    }
+                    final String text = message;
+                    runOnUiThread(() -> Toast.makeText(this, text, Toast.LENGTH_LONG).show());
+                }).start();
+            }
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     // from the game (src/engine/platform/android.cpp NoteControllerEvent): a real controller was used, on the game thread

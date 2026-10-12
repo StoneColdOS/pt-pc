@@ -34,6 +34,17 @@ void SetResolutionSetting(int index);
 /* The graphics driver setting (display.android_driver): 0 the bundled Turnip, 1 the device's own. Read at start, before the
    Vulkan context; a change applies at the next start. driver.txt, when the app can read it, wins. */
 void SetDriverSetting(int value);
+/* Fallbacks of the Vulkan context (vk_context.cpp): the bundled Turnip when the system's driver could not run the GPU, and
+   whether it was tried already. When every driver failed, NoteVulkanFailure makes the launcher show its recovery screen at the
+   next start; the choice made there (select.txt) comes back through TakePendingDriverChoice (-1 none, else 0 bundled,
+   1 the device's own, 2 the imported one). */
+PFN_vkGetInstanceProcAddr LoadBundledVulkanDriver(std::string& name);
+bool BundledVulkanDriverTried();
+void NoteVulkanFailure();
+int TakePendingDriverChoice();
+/* The imported driver's file name (empty without one), and the file picker that imports one (DriverImport.java). */
+std::string CustomDriverName();
+void RequestDriverImport();
 
 /* The second screen of a dual-screen handheld (AYN Thor and others; android/.../SecondScreen.java): the loop the player is on
    and the subtitle line playing now (empty for none), sent on only when one of them changes. Does nothing without one. */
@@ -63,6 +74,9 @@ void ForceSystemVulkanDriver();
 /* Settings and saves: DataDir()/data, or the app's internal storage when that folder cannot be written (a file manager or
    an earlier install made it under another owner, and Android then refuses the app its own folder). */
 std::filesystem::path UserDataDir();
+/* The data folder could not be prepared after all (a file in it left by an earlier install under another owner cannot be
+   rewritten, though new files can be made): from now on UserDataDir is the app's internal storage. False when it already was. */
+bool UseInternalUserData();
 /* The APK's versionName (v0.2.1, or test-<run>-<commit> for a test build) and the device ("AYN Thor, Android 14"), for the
    top of pt.log: the game's own version line is the PC port's. */
 std::string AppVersion();

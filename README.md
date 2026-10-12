@@ -66,8 +66,12 @@ a problem, with your device and chip. From a computer, `adb pull /storage/emulat
 Two settings help when the game runs slowly or looks wrong (**Settings > Display**):
 
 - **Resolution**: Auto picks a value for your GPU; 50% is the fastest.
-- **Graphics driver**: the bundled Mesa Turnip (default) or your device's own driver, from the next start. Try the
-  device's own if you see flickering blocks or other glitches, and tell us if it helped.
+- **Graphics driver**: the bundled Mesa Turnip (default), your device's own driver, or one you imported, from the next
+  start. If the chosen one cannot run your GPU, the game falls back to the others by itself.
+- **Import a driver**: pick an AdrenoTools driver `.zip` (for example a Turnip build from
+  [K11MCH1's releases](https://github.com/K11MCH1/AdrenoToolsDrivers/releases)) with the file picker.
+
+If no driver works at all, the next start shows a screen to try again, import a driver or pick one before the game loads.
 
 (The older `render_scale.txt` and `driver.txt` files in Download/PT-logs still work, but only if the app can read them:
 Android often hides files made by a file manager from other apps.)

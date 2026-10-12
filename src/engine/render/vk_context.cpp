@@ -168,18 +168,25 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
 #endif
 #ifdef __ANDROID__
     /* the bundled Mesa Turnip driver through libadrenotools, unless driver.txt asks for the system's (docs/android.md) */
-    if (!loader && !android::SystemVulkanDriverForced()) {
+    if (!loader && !android_retry_) {
         std::string driver;
         loader = android::LoadVulkanDriver(driver);
         LogInfo("vulkan: driver: {}", driver);
-    } else if (!loader) {
-        LogInfo("vulkan: driver: system driver (the bundled one cannot run this GPU)");
+    } else if (android_retry_) {
+        LogInfo("vulkan: driver: {} (fallback)", loader ? "bundled Mesa Turnip" : "system driver");
     }
-    // the bundled Turnip found no GPU it can run, or not one with everything the renderer needs: everything made so far goes,
-    // and Init starts over on the system's driver
+    // the driver found no GPU it can run, or not one with everything the renderer needs: everything made so far goes, and Init
+    // starts over on the next driver: a bundled or imported one falls back to the system's, the system's to the bundled Turnip
+    // (a player who picked "Device's own" on a phone whose driver is too old was locked out of the menu otherwise)
     auto retry_on_system_driver = [&]() -> bool {
-        if (!loader || android::SystemVulkanDriverForced()) return false;
-        LogWarn("vulkan: the bundled driver cannot run this GPU, trying the system's driver");
+        const bool to_system = loader && !android::SystemVulkanDriverForced();
+        const bool to_bundled = !loader && !android::BundledVulkanDriverTried();
+        if (!to_system && !to_bundled) {
+            android::NoteVulkanFailure();
+            return false;
+        }
+        LogWarn("vulkan: {} cannot run this GPU, trying {}", loader ? "this driver" : "the system's driver",
+                to_system ? "the system's driver" : "the bundled Turnip");
         if (surface) vkDestroySurfaceKHR(instance, surface, nullptr);
         surface = VK_NULL_HANDLE;
         if (messenger) vkDestroyDebugUtilsMessengerEXT(instance, messenger, nullptr);
@@ -187,8 +194,18 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
         if (instance) vkDestroyInstance(instance, nullptr);
         instance = VK_NULL_HANDLE;
         physical = VK_NULL_HANDLE;
-        loader = nullptr;
-        android::ForceSystemVulkanDriver();
+        android_retry_ = true;
+        if (to_system) {
+            loader = nullptr;
+            android::ForceSystemVulkanDriver();
+        } else {
+            std::string name;
+            loader = android::LoadBundledVulkanDriver(name);
+            if (!loader) {
+                android::NoteVulkanFailure();
+                return false;
+            }
+        }
         return true;
     };
 #endif
@@ -310,6 +327,8 @@ bool Context::Init(SDL_Window* window, bool validation, bool want_hdr) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(candidate, &props);
         if (props.apiVersion < VK_API_VERSION_1_3) {
+            LogInfo("vulkan: {} skipped: Vulkan {}.{} (1.3 needed)", props.deviceName, VK_API_VERSION_MAJOR(props.apiVersion),
+                    VK_API_VERSION_MINOR(props.apiVersion));
             continue;
         }
         uint32_t family_count = 0;

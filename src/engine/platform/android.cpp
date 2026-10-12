@@ -134,7 +134,7 @@ int g_resolution_setting = 0;
 int g_driver_setting = 0;  // display.android_driver: 0 bundled Turnip, 1 the device's own
 }
 
-void SetDriverSetting(int value) { g_driver_setting = std::clamp(value, 0, 1); }
+void SetDriverSetting(int value) { g_driver_setting = std::clamp(value, 0, 2); }
 
 void SetResolutionSetting(int index) { g_resolution_setting = std::clamp(index, 0, kResolutionChoices - 1); }
 
@@ -338,22 +338,34 @@ bool UnpackBundledAssets() {
 namespace {
 
 // driver.txt: in Download/PT-logs (reachable with a file manager), else in the app's own folder
+// the app's private driver folder (getFilesDir()/drivers, DriverImport.java): custom.txt names the imported .so
+std::filesystem::path DriverDir() {
+    const char* internal = SDL_GetAndroidInternalStoragePath();
+    return std::filesystem::path(internal ? internal : ".") / "drivers";
+}
+
+std::string FirstLine(const std::filesystem::path& file) {
+    std::ifstream in(file);
+    std::string line;
+    std::getline(in, line);
+    return Trim(line);
+}
+
 std::string DriverChoice() {
     // driver.txt first (a file manager's file in Download is often unreadable to the app, so the setting is the usual way)
     for (const std::filesystem::path& file : {LogDir() / "driver.txt", DataDir() / "driver.txt"}) {
-        std::ifstream in(file);
-        std::string line;
-        if (std::getline(in, line) && !Trim(line).empty()) {
-            line = Trim(line);
+        const std::string line = FirstLine(file);
+        if (!line.empty()) {
             LogInfo("android: driver.txt in {}: {}", file.parent_path().string(), line);
             return line;
         }
     }
+    if (g_driver_setting == 2) return "custom";
     return g_driver_setting == 1 ? "system" : "turnip";
 }
 
-PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
-    const std::string choice = DriverChoice();
+PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name, const std::string& forced = {}) {
+    const std::string choice = forced.empty() ? DriverChoice() : forced;
     std::string lower = choice;
     std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (lower == "system") {
@@ -370,7 +382,19 @@ PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name) {
     std::string driver_dir = hook_dir;
     std::string driver_file = "libvulkan_turnip.so";
     std::string label = "Mesa Turnip (bundled)";
-    if (lower != "turnip") {
+    if (lower == "custom") {
+        /* an imported AdrenoTools driver (Settings > Display > Import driver, or the recovery screen): already in the app's
+           private folder, where a library can be loaded from */
+        const std::string file = FirstLine(DriverDir() / "custom.txt");
+        std::error_code ec;
+        if (!file.empty() && std::filesystem::is_regular_file(DriverDir() / file, ec)) {
+            driver_dir = DriverDir().string() + "/";
+            driver_file = file;
+            label = "imported driver " + file;
+        } else {
+            LogWarn("android: no imported driver in {}, using the bundled Turnip", DriverDir().string());
+        }
+    } else if (lower != "turnip") {
         /* another driver: a .so (the one inside an AdrenoTools driver zip) named in driver.txt and put next to it. A library
            cannot be loaded from shared storage, so it is copied into the app's private folder first. */
         const std::filesystem::path source = LogDir() / choice;
@@ -450,7 +474,27 @@ std::string DeviceName() {
            ", Android " + property("ro.build.version.release");
 }
 
+namespace {
+std::filesystem::path InternalUserDataDir() {
+    const char* internal = SDL_GetAndroidInternalStoragePath();
+    const std::filesystem::path dir = std::filesystem::path(internal ? internal : ".") / "data";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    return dir;
+}
+bool g_internal_user_data = false;
+}  // namespace
+
+bool UseInternalUserData() {
+    if (g_internal_user_data) return false;
+    g_internal_user_data = true;
+    LogWarn("android: {} could not be prepared (files left by an earlier install can belong to another owner); settings and "
+            "saves go to {}", (DataDir() / "data").string(), InternalUserDataDir().string());
+    return true;
+}
+
 std::filesystem::path UserDataDir() {
+    if (g_internal_user_data) return InternalUserDataDir();
     static const std::filesystem::path dir = [] {
         const std::filesystem::path external = DataDir() / "data";
         std::error_code ec;
@@ -475,12 +519,56 @@ std::filesystem::path UserDataDir() {
 }
 bool SystemVulkanDriverForced() { return g_system_driver_forced; }
 
+namespace {
+bool g_bundled_tried = false;
+}
+
 PFN_vkGetInstanceProcAddr LoadVulkanDriver(std::string& name) {
     // opened once per process: a second libadrenotools load would map the driver again
     static std::string chosen;
-    static const PFN_vkGetInstanceProcAddr proc = OpenVulkanDriver(chosen);
+    static const PFN_vkGetInstanceProcAddr proc = [] {
+        PFN_vkGetInstanceProcAddr p = OpenVulkanDriver(chosen);
+        if (!p) g_system_driver_forced = true;  // the first try is the system's: a fallback goes to the bundled one
+        else if (chosen.find("bundled") != std::string::npos) g_bundled_tried = true;
+        return p;
+    }();
     name = chosen;
     return proc;
+}
+
+PFN_vkGetInstanceProcAddr LoadBundledVulkanDriver(std::string& name) {
+    static std::string chosen;
+    static const PFN_vkGetInstanceProcAddr proc = OpenVulkanDriver(chosen, "turnip");
+    g_bundled_tried = true;
+    name = chosen;
+    return proc;
+}
+
+bool BundledVulkanDriverTried() { return g_bundled_tried; }
+
+void NoteVulkanFailure() {
+    // the launcher shows its recovery screen at the next start (SetupActivity: try again, import a driver, pick one)
+    std::error_code ec;
+    std::filesystem::create_directories(DriverDir(), ec);
+    std::ofstream(DriverDir() / "vulkan-failed") << "1";
+}
+
+int TakePendingDriverChoice() {
+    const std::filesystem::path file = DriverDir() / "select.txt";
+    const std::string line = FirstLine(file);
+    std::error_code ec;
+    std::filesystem::remove(file, ec);
+    std::filesystem::remove(DriverDir() / "vulkan-failed", ec);
+    if (line == "turnip") return 0;
+    if (line == "system") return 1;
+    if (line == "custom") return 2;
+    return -1;
+}
+
+std::string CustomDriverName() { return FirstLine(DriverDir() / "custom.txt"); }
+
+void RequestDriverImport() {
+    CallActivityStatic("importDriver", "()V", [](JNIEnv* env, jclass cls, jmethodID m) { env->CallStaticVoidMethod(cls, m); });
 }
 
 namespace {

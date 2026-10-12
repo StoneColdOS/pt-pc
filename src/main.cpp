@@ -1963,8 +1963,16 @@ public:
                                        {"pc_second_screen_subtitles", "pc_second_screen_clock", "pc_second_screen_dim", "pc_off"},
                                        std::clamp(s.display.second_screen, 0, 3), "pc_note_second_screen"));
         }
-        display.rows.push_back(Row(kGraphicsDriver, "pc_graphics_driver", {"pc_graphics_driver_turnip", "pc_graphics_driver_system"},
-                                   std::clamp(s.display.android_driver, 0, 1), "pc_note_graphics_driver"));
+        {
+            const std::string custom = pt::android::CustomDriverName();
+            pt::game::PcSettingRow driver = Row(kGraphicsDriver, "pc_graphics_driver", {"pc_graphics_driver_turnip", "pc_graphics_driver_system"},
+                                                std::clamp(s.display.android_driver, 0, custom.empty() ? 1 : 2), "pc_note_graphics_driver");
+            if (!custom.empty()) driver.values.push_back("Imported: " + custom);
+            display.rows.push_back(std::move(driver));
+            auto import = Row(kImportDriver, "pc_import_driver", {"pc_graphics_value"}, 0, "pc_note_import_driver");
+            import.link = true;
+            display.rows.push_back(std::move(import));
+        }
         display.rows.push_back(Row(kTouchControls, "pc_touch_controls", {"pc_touch_controls_auto", "pc_off"},
                                    std::clamp(s.display.touch_controls, 0, 1), "pc_note_touch_controls"));
 #endif
@@ -2284,7 +2292,7 @@ public:
 #endif
             break;
         case kGraphicsDriver:
-            s.display.android_driver = std::clamp(value, 0, 1);
+            s.display.android_driver = std::clamp(value, 0, pt::android::CustomDriverName().empty() ? 1 : 2);
             break;
         case kTouchControls:
             s.display.touch_controls = std::clamp(value, 0, 1);
@@ -2613,6 +2621,9 @@ public:
         if (id == kLoopBrowser) { page_ = kLoopPage; GeneratePreviews(); }
         if (id == kExtras) page_ = kExtrasPage;
         if (id == kVr) page_ = kVrPage;
+#ifdef __ANDROID__
+        if (id == kImportDriver) pt::android::RequestDriverImport();
+#endif
         // the menu closes first (main loop), so the photo mode's pause is not the menu's
         if (id == kFreecam) app_.extras_request = 1;
         if (id == kPhotoMode) app_.extras_request = 2;
@@ -2738,7 +2749,7 @@ private:
         kLoopBrowser, kExtras, kFreecam, kPhotoMode, kStreetWalk, kStreetRestart, kStreetLeave, kLoopLock, kThirdPerson, kSpeedrun, kLiveSplit, kRunMenu, kRunReal, kRunGame, kRunBest,
         kArchive, kArchiveLock,
         kVr, kVrMode, kVrFlashlight, kVrTurn, kVrHeight, kVrWorldScale,
-        kSecondScreen, kTouchControls, kGraphicsDriver,
+        kSecondScreen, kTouchControls, kGraphicsDriver, kImportDriver,
         kLoopFirst = 1000,
         kRunSplitFirst = 3000,
         kModFirst = 2000,
@@ -5201,6 +5212,10 @@ int main(int argc, char** argv) {
 #ifdef _WIN32
     const std::string driver_advice = "Install the latest graphics driver from NVIDIA, AMD or Intel (a clean reinstall fixed this for other "
                                       "players), and close overlays such as RivaTuner or MSI Afterburner. P.T. needs a GPU with Vulkan 1.3.";
+#elif defined(__ANDROID__)
+    const std::string driver_advice = "P.T. tried the graphics driver that comes with the app and this device's own, and neither can run the "
+                                      "game here. It needs a Qualcomm Adreno GPU (Snapdragon); Mali, PowerVR and Xclipse GPUs are not supported yet. "
+                                      "A custom driver (an AdrenoTools driver .zip) can be imported under Settings > Display once the game starts.";
 #else
     const std::string driver_advice = "Make sure your graphics driver provides Vulkan 1.3 (Mesa 23 or newer, or the NVIDIA driver) and that "
                                       "P.T. runs inside your desktop session.";
@@ -5212,8 +5227,15 @@ int main(int argc, char** argv) {
     }
     if (!tool) {
         // A normal launch imports the old profile folder once; a headless run never reads the player's profile.
-        const pt::platform::UserDataReport user_data = pt::platform::PrepareUserDataDirectory(
+        pt::platform::UserDataReport user_data = pt::platform::PrepareUserDataDirectory(
             UserDataDir(), options.headless ? std::filesystem::path() : LegacyUserDataDir(), !options.headless);
+#ifdef __ANDROID__
+        // the shared app folder refused (a file an earlier install left there): the app's private storage instead
+        if (!user_data.success && pt::android::UseInternalUserData()) {
+            for (const auto& error : user_data.errors) pt::LogWarn("android: data folder: {}", error);
+            user_data = pt::platform::PrepareUserDataDirectory(UserDataDir(), LegacyUserDataDir(), !options.headless);
+        }
+#endif
         if (!user_data.success) {
             std::string text = "P.T. cannot prepare its data folder:\n" + pt::os::PathToUtf8(UserDataDir());
             for (const auto& error : user_data.errors) text += "\n" + error;
@@ -5382,6 +5404,12 @@ int main(int argc, char** argv) {
         pt::android::SetSecondScreenMode(app.settings.display.second_screen);
         pt::android::SetTouchControlsEnabled(app.settings.display.touch_controls == 0);
         pt::android::SetResolutionSetting(app.settings.display.android_resolution);
+        // a choice from the launcher's recovery screen, or the driver just imported, comes first
+        if (const int pending = pt::android::TakePendingDriverChoice(); pending >= 0) {
+            pt::LogInfo("android: graphics driver set to {} from the launcher", pending);
+            app.settings.display.android_driver = pending;
+            save_now = true;
+        }
         pt::android::SetDriverSetting(app.settings.display.android_driver);
 #endif
         if (save_now) {

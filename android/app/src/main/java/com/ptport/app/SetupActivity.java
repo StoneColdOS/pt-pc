@@ -37,6 +37,7 @@ import java.io.File;
 public class SetupActivity extends Activity {
     private static final int PICK_PKG = 1;
     private static final int ASK_MICROPHONE = 2;
+    private static final int PICK_DRIVER = 3;
     private static final long NEEDED_BYTES = 1_400_000_000L;
     private static final String[] SHARED_GAME_DIRS = {
         "/storage/emulated/0/Download/CUSA01127", "/storage/emulated/0/Download/PT", "/storage/emulated/0/Download",
@@ -53,7 +54,7 @@ public class SetupActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        if (gameInstalled() && !shouldAskMicrophone()) {
+        if (gameInstalled() && !shouldAskMicrophone() && !graphicsFailed()) {
             launchGame();
             return;
         }
@@ -70,6 +71,10 @@ public class SetupActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER_HORIZONTAL);
         root.addView(scroll, lp);
         setContentView(root);
+        if (gameInstalled() && graphicsFailed()) {
+            showGraphicsFailed();
+            return;
+        }
         if (gameInstalled()) {
             showMicrophone();
             return;
@@ -164,6 +169,40 @@ public class SetupActivity extends Activity {
         start.requestFocus();
     }
 
+    // the last start found no graphics driver that runs this GPU (android.cpp NoteVulkanFailure): pick one, or import one
+    private boolean graphicsFailed() {
+        return new File(DriverImport.driverDir(this), "vulkan-failed").isFile();
+    }
+
+    private void showGraphicsFailed() {
+        panel.removeAllViews();
+        title("Graphics");
+        text("Last time P.T. could not start its graphics: neither the driver that comes with the app nor this device's own "
+                + "could run the game.\n\nP.T. needs a Qualcomm Adreno GPU (Snapdragon). If you have one, you can import a "
+                + "different driver: an AdrenoTools driver .zip, such as a Turnip build from K11MCH1's releases.");
+        Button again = button("Try again", v -> chooseDriver(null));
+        button("Import a driver (.zip)", v -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            startActivityForResult(intent, PICK_DRIVER);
+        });
+        button("Use the device's own driver", v -> chooseDriver("system"));
+        button("Use the bundled driver", v -> chooseDriver("turnip"));
+        button("Quit", v -> finish());
+        again.requestFocus();
+    }
+
+    private void chooseDriver(String choice) {
+        try {
+            if (choice != null) DriverImport.select(this, choice);
+            //noinspection ResultOfMethodCallIgnored
+            new File(DriverImport.driverDir(this), "vulkan-failed").delete();
+        } catch (Exception ignored) {
+        }
+        launchGame();
+    }
+
     // asked once, before the first game start: the ending listens for a word. The game works without it (both triggers).
     private void showMicrophone() {
         panel.removeAllViews();
@@ -215,6 +254,22 @@ public class SetupActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_DRIVER) {
+            if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+            try {
+                String name = DriverImport.importFrom(this, data.getData());
+                panel.removeAllViews();
+                title("Driver imported");
+                text(name + " is ready. P.T. starts with it now; if it cannot run your GPU either, the game falls back to the others.");
+                button("Start P.T.", v -> chooseDriver("custom")).requestFocus();
+            } catch (Exception e) {
+                panel.removeAllViews();
+                title("That did not work");
+                text("Could not import that driver: " + e.getMessage());
+                button("Back", v -> showGraphicsFailed()).requestFocus();
+            }
+            return;
+        }
         if (requestCode != PICK_PKG || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         extract(data.getData());
     }
