@@ -4362,7 +4362,7 @@ int RunGame(App& app, pt::Vfs& vfs) {
 #ifdef __ANDROID__
             if (!theater) {
                 // the dual-screen handheld's bottom screen: the loop and the subtitle line now (sent only on a change)
-                pt::android::UpdateSecondScreen(game.Floor().Index(), ui.SecondScreenLine());
+                pt::android::UpdateSecondScreen(game.Floor().Index(), ui.SecondScreenLine(), game.HallwayClockMidnight());
             }
 #endif
             const auto tick_t3 = std::chrono::steady_clock::now();

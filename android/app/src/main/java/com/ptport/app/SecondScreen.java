@@ -29,7 +29,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
 
-/* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen 23:59 digital clock (00:00 on loops 12 to 14, as in the hallway), white with a cold blue
+/* The bottom screen of a dual-screen handheld (AYN Thor and the like): a frozen 23:59 digital clock (00:00 when the hallway's reads that), white with a cold blue
    glow like the hallway's own, the loop the player is on, and (the default look) the subtitle line playing now. Drawn with Android's own Canvas, so the game's GPU
    time is not touched. Shown as a Presentation on the second display (an activity on that display where the system refuses
    a Presentation); nothing happens on a device with one screen.
@@ -58,6 +58,7 @@ final class SecondScreen {
     private static int modeIndex = -1;
     private static int loop = 0;
     private static String line = "";
+    private static boolean midnight = false;
 
     private final Activity activity;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -80,13 +81,17 @@ final class SecondScreen {
 
     static void update(int newLoop, byte[] utf8) {
         final String text = utf8 == null ? "" : new String(utf8, java.nio.charset.StandardCharsets.UTF_8);
-        final int value = newLoop;
+        // a negative loop is the hallway clock at 00:00 (android.cpp UpdateSecondScreen)
+        final boolean isMidnight = newLoop < 0;
+        final int value = isMidnight ? -newLoop - 1 : newLoop;
         new Handler(Looper.getMainLooper()).post(() -> {
             loop = value;
             line = text;
+            midnight = isMidnight;
             SecondScreen screen = instance;
             if (screen != null && screen.view != null) {
                 screen.view.setLoop(loop);
+                screen.view.setMidnight(midnight);
                 screen.view.setLine(line);
             }
         });
@@ -122,6 +127,7 @@ final class SecondScreen {
         screen.view = view;
         view.setMode(screen.mode);
         view.setLoop(loop);
+        view.setMidnight(midnight);
         view.setLine(line);
     }
 
@@ -254,6 +260,7 @@ final class SecondScreen {
             view = clock;
             clock.setMode(mode);
             clock.setLoop(loop);
+            clock.setMidnight(midnight);
             clock.setLine(line);
         }
     }
@@ -306,6 +313,7 @@ final class SecondScreen {
 
         private String mode = "clock";
         private int loopNumber;
+        private boolean showMidnight;
         private String currentLine = "";
         private long lineEndedAt;
 
@@ -345,6 +353,12 @@ final class SecondScreen {
 
         void setLoop(int loop) {
             loopNumber = loop;
+            invalidate();
+        }
+
+        void setMidnight(boolean value) {
+            if (showMidnight == value) return;
+            showMidnight = value;
             invalidate();
         }
 
@@ -432,8 +446,9 @@ final class SecondScreen {
         }
 
         private void drawClock(Canvas canvas, float x, float y, float height, boolean dim) {
-            // the hallway's clock reads 00:00 on loops 12 to 14 (the game swaps its 23:59 model for another there), 23:59 elsewhere
-            String time = loopNumber >= 12 && loopNumber <= 14 ? "0000" : "2359";
+            // what the hallway's clock reads: the game swaps its 23:59 model for a 00:00 one in some of the later loops (Game::
+            // HallwayClockMidnight follows the swap itself)
+            String time = showMidnight ? "0000" : "2359";
             float digit = height * 0.6f, gap = height * 14f / 160f, colon = height * 22f / 160f;
             float unit = height / 100f;
             // glow in screen pixels: a wide soft blue halo under a tight one on near-white segments (the matrix places the

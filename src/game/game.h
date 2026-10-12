@@ -242,6 +242,10 @@ public:
     Vfs& GetVfs() { return vfs_; }
     ModelCache& Models() { return models_; }
     StageManager& Stages() { return stages_; }
+    // what the hallway's digital clock reads: true 00:00 (its environ model shsb_clck001_0000 shown, the later loops), false
+    // 23:59 (a loop's opening demo creates shsb_clck001_2359); the Android second screen mirrors it
+    bool HallwayClockMidnight() const { return hallway_clock_midnight_; }
+    void SetHallwayClockMidnight(bool midnight) { hallway_clock_midnight_ = midnight; }
     const CollisionWorld& Collision() const { return collision_; }
     // the detailed surfaces the camera's line checks hit (mask 0x700), StageManager::LineChecks
     const CollisionWorld& LineCollision() const { return line_collision_; }
@@ -692,6 +696,7 @@ private:
     TheaterControl theater_;
     std::vector<SubtitleRequest> subtitle_requests_;
     std::vector<SubtitleRewind> subtitle_rewinds_;
+    bool hallway_clock_midnight_ = false;
     bool clear_subtitles_pending_ = false;
 };
 

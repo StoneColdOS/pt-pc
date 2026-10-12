@@ -48,7 +48,7 @@ void RequestDriverImport();
 
 /* The second screen of a dual-screen handheld (AYN Thor and others; android/.../SecondScreen.java): the loop the player is on
    and the subtitle line playing now (empty for none), sent on only when one of them changes. Does nothing without one. */
-void UpdateSecondScreen(int loop, const std::string& line);
+void UpdateSecondScreen(int loop, const std::string& line, bool midnight = false);
 
 /* What the second screen shows (AppSettings display.second_screen): 0 clock and subtitles, 1 clock, 2 dim clock, 3 off. Nothing
    is shown there until this is called once. */

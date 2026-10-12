@@ -1200,6 +1200,7 @@ void DemoSystem::CreateModel(PlayingDemo& demo, const anim::StreamEvent& e) {
     LogInfo("demo: {} creates {} model {} {}{}{}", demo.demo_id, model.skinned ? "skinned" : "static", name,
             model.player_own ? "(player's own body) " + model.fmdl : model.fmdl.empty() ? "(player's own)" : model.fmdl, model.drawn ? (model.mesh ? "" : " (mesh missing)") : " (not drawn)",
             model.help_bones ? std::format(", {} help bones", model.help_bones->Entries().size()) : "");
+    if (model.fmdl.find("shsb_clck001_2359") != std::string::npos) game_.SetHallwayClockMidnight(false);
     demo.models.push_back(std::move(model));
 }
 

@@ -107,6 +107,9 @@ void ScriptHost::OnBodyChanged(Stage& stage, const fox2::Entity& entity, BodyFie
     const bool value = field == BodyField::Enable ? body.enable : field == BodyField::Visible ? body.visible : body.geom_active;
     LogDebug("body: {} {} {} = {}", entity.class_name, file ? file->file->EntityName(entity) : std::string(),
              field == BodyField::Enable ? "enable" : field == BodyField::Visible ? "visible" : "geom", value);
+    if (field == BodyField::Visible && file && file->file->EntityName(entity).find("shsb_clck001_0000") != std::string::npos) {
+        game_.SetHallwayClockMidnight(value);
+    }
     if (field == BodyField::GeomActive) {
         game_.Stages().MarkGeomDirty();
     } else {

@@ -219,18 +219,22 @@ bool HasSecondScreen() {
     return has == JNI_TRUE;
 }
 
-void UpdateSecondScreen(int loop, const std::string& line) {
+void UpdateSecondScreen(int loop, const std::string& line, bool midnight) {
     static int last_loop = -1;
     static std::string last_line;
-    if (loop == last_loop && line == last_line) return;
+    static int last_midnight = -1;
+    if (loop == last_loop && line == last_line && static_cast<int>(midnight) == last_midnight) return;
     last_loop = loop;
     last_line = line;
+    last_midnight = midnight;
+    // the clock's time rides in the loop number's sign bit (negative: the hallway clock reads 00:00), keeping the Java call
+    const int sent = midnight ? -(loop + 1) : loop;
     CallActivityStatic("updateSecondScreen", "(I[B)V", [&](JNIEnv* env, jclass cls, jmethodID m) {
         // UTF-8 bytes, decoded in Java: NewStringUTF wants modified UTF-8 and rejects some valid text
         jbyteArray bytes = env->NewByteArray(static_cast<jsize>(line.size()));
         if (!bytes) return;
         env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(line.size()), reinterpret_cast<const jbyte*>(line.data()));
-        env->CallStaticVoidMethod(cls, m, static_cast<jint>(loop), bytes);
+        env->CallStaticVoidMethod(cls, m, static_cast<jint>(sent), bytes);
         env->DeleteLocalRef(bytes);
     });
 }
