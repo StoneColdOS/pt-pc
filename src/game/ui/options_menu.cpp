@@ -663,6 +663,17 @@ void OptionsMenu::UpdateOriginal(Game& game, const MenuInput& raw_input, float d
         ApplyTexts();
         if (input.back || input.close) return;
     }
+    // B (Circle) backs out like the page's own Back: a pending quit question first, then the menu itself (it only took the
+    // pause button or a click on Back)
+    if (input.back) {
+        if (quit_confirming_ || quit_focused_) {
+            quit_confirming_ = false;
+            quit_focused_ = false;
+            ApplyTexts();
+            return;
+        }
+        input.close = true;
+    }
     if (input.switch_column) {
         quit_focused_ = true;
         if (quit_confirming_) { Commit(game); game.RequestOptionsSave(); game.RequestQuit(); LogInfo("ui: quit selected from Options"); }
