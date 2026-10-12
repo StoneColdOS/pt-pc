@@ -1,8 +1,18 @@
 Experimental Android build of LoreanXavier's native P.T. PC port (https://github.com/LoreanXavier/pt-pc). All the real
 work is theirs; this adds the Android layer.
 
-**Coming from v0.2.1?** Install right over it; your game files and saves stay. Coming from anything older, uninstall
+**Coming from v0.2.1 or newer?** Install right over it; your game files and saves stay. Coming from anything older, uninstall
 that first (one last time) and pick your .pkg again.
+
+What's new in v0.2.4:
+
+- Newer Adreno 8xx GPUs work (confirmed on a Snapdragon 7s Gen 4 tablet) through the device's own driver.
+- No more lockouts from the driver setting: if the chosen driver can't run your GPU, the game falls back to the next one by
+  itself (bundled or imported, then the device's own, then the bundled one again).
+- **Settings > Display > Import a driver**: load any AdrenoTools driver .zip (for example a Turnip build from K11MCH1's
+  releases) with the file picker. It shows up under Graphics driver from the next start.
+- If no driver works at all, the next start shows a screen to try again, import a driver or pick one, before the game loads.
+- A stronger fix for "cannot prepare its data folder": the game now moves to its private storage whenever that folder fails.
 
 What's new in v0.2.3:
 
