@@ -5140,6 +5140,14 @@ int main(int argc, char** argv) {
        handheld (AYN Thor) was held at an angle */
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft");
     // the log (and a crash report) where the player can reach them: Download/PT-logs when the app may write there
+    {
+        // the previous run stays as pt-previous.log: a player who changes the driver and restarts can send both
+        std::error_code ec;
+        const std::filesystem::path current = pt::android::LogDir() / "pt.log";
+        if (std::filesystem::exists(current, ec)) {
+            std::filesystem::copy_file(current, pt::android::LogDir() / "pt-previous.log", std::filesystem::copy_options::overwrite_existing, ec);
+        }
+    }
     pt::LogSetFile(pt::android::LogDir() / "pt.log");
     pt::android::InstallCrashLog(pt::android::LogDir() / "pt-crash.txt");
     pt::LogInfo("android: log in {}", pt::android::LogDir().string());

@@ -59,7 +59,8 @@ the microphone in the game's settings.
 
 ## When something goes wrong
 
-The app writes its log to **Download/PT-logs**: `pt.log`, plus `pt-crash.txt` after a crash. Attach those when you report
+The app writes its log to **Download/PT-logs**: `pt.log` for the latest run, `pt-previous.log` for the one before, plus
+`pt-crash.txt` after a crash. Attach those when you report
 a problem, with your device and chip. From a computer, `adb pull /storage/emulated/0/Download/PT-logs` grabs them.
 
 Two settings help when the game runs slowly or looks wrong (**Settings > Display**):
