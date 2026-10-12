@@ -155,7 +155,9 @@ float AutoScale(const char* gpu_name) {
     const int adreno = AdrenoNumber(gpu_name);
     if (adreno == 0) return 0.58f;
     if (adreno >= 825 || (adreno >= 730 && adreno < 800)) return 0.667f;
-    if (adreno >= 800 || adreno >= 720 || adreno >= 650) return 0.58f;
+    if (adreno >= 800) return 0.58f;              // the 8xx parts below 825
+    if (adreno >= 700) return adreno >= 720 ? 0.58f : 0.5f;  // 720/722/725 in the middle, the 710 with the slow ones
+    if (adreno >= 650) return 0.58f;              // 650/660/690
     return 0.5f;
 }
 
@@ -368,6 +370,32 @@ std::string DriverChoice() {
     return g_driver_setting == 1 ? "system" : "turnip";
 }
 
+/* The Adreno 710, 720 and 722 (Snapdragon 7s Gen 2, 6 Gen 1, 6 Gen 3, 7 Gen 3, 7 Gen 4): the KIMCHI Turnip drew green blocks
+   and lost the device on a 710, so "bundled" means the Turnip build made for these three there (libvulkan_turnip_a7xx.so).
+   The GPU from the kernel driver's sysfs when it is readable, else the SoC from ro.soc.model. */
+bool MidAdreno7() {
+    static const bool mid = [] {
+        std::string model = FirstLine("/sys/class/kgsl/kgsl-3d0/gpu_model");
+        for (const char* gpu : {"710", "720", "722"}) {
+            if (model.find(std::string("Adreno") + gpu) != std::string::npos) {
+                LogInfo("android: GPU {} (sysfs): the Turnip build for the Adreno 710/720/722", model);
+                return true;
+            }
+        }
+        char soc[PROP_VALUE_MAX] = {};
+        __system_property_get("ro.soc.model", soc);
+        for (const char* known : {"SM7435", "SM6450", "SM6475", "SM7550", "SM7750"}) {
+            if (std::string(soc) == known) {
+                LogInfo("android: SoC {} (Adreno 710/720/722): the Turnip build for those", soc);
+                return true;
+            }
+        }
+        LogInfo("android: GPU '{}', SoC '{}': the general Turnip build", model, soc);
+        return false;
+    }();
+    return mid;
+}
+
 PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name, const std::string& forced = {}) {
     const std::string choice = forced.empty() ? DriverChoice() : forced;
     std::string lower = choice;
@@ -386,6 +414,10 @@ PFN_vkGetInstanceProcAddr OpenVulkanDriver(std::string& name, const std::string&
     std::string driver_dir = hook_dir;
     std::string driver_file = "libvulkan_turnip.so";
     std::string label = "Mesa Turnip (bundled)";
+    if (lower == "turnip" && MidAdreno7()) {
+        driver_file = "libvulkan_turnip_a7xx.so";
+        label = "Mesa Turnip for Adreno 710/720/722 (bundled)";
+    }
     if (lower == "custom") {
         /* an imported AdrenoTools driver (Settings > Display > Import driver, or the recovery screen): already in the app's
            private folder, where a library can be loaded from */

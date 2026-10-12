@@ -99,6 +99,8 @@ in [docs/android.md](docs/android.md).
 - [P.T. PC port](https://github.com/LoreanXavier/pt-pc) by LoreanXavier: the game itself, as native C++ and Vulkan.
 - [Mesa Turnip](https://docs.mesa3d.org/drivers/freedreno.html), the open-source Adreno Vulkan driver, in the
   [KIMCHI AdrenoTools build](https://github.com/K11MCH1/AdrenoToolsDrivers).
+- [Turnip for Adreno 710/720/722](https://github.com/Vauzi-17/710) by Vauzi-17 (Mesa, MIT; source and patch in that
+  repository), used automatically on those GPUs.
 - [libadrenotools](https://github.com/bylaws/libadrenotools) by bylaws, which loads that driver in an app.
 - [SDL3](https://github.com/libsdl-org/SDL) for the Android activity, input and audio.
 - [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT) with OpenAI's Whisper base.en model (MIT) and the Silero VAD

@@ -16,6 +16,10 @@ GLSLC="${GLSLC:-$(command -v glslc)}"
 # Mesa Turnip for Adreno 6xx/7xx (MIT), the KIMCHI build packaged for libadrenotools
 TURNIP_URL="https://github.com/K11MCH1/AdrenoToolsDrivers/releases/download/v26.0.0-rc08/Turnip_v26.0.0_R8.zip"
 TURNIP_SHA256="e634db0f929e2205e95511c769071817d0390180ec72c8e690bc76375e813715"
+# Mesa Turnip 26.3 for Adreno 710/720/722 (MIT; Vauzi-17's build with one gralloc patch, source and patch at
+# https://github.com/Vauzi-17/710): the KIMCHI build drew green blocks and lost the device on an Adreno 710, this one did not
+TURNIP_A7XX_URL="https://github.com/Vauzi-17/710/releases/download/4.2/Turnip-710-720-722-v4.2.zip"
+TURNIP_A7XX_SHA256="dd6730a00ecd9af4cf7ad5546e79db4981254e025aa887a3bb0da220f0100692"
 
 cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
@@ -62,6 +66,14 @@ echo "$TURNIP_SHA256  $TURNIP_ZIP" | sha256sum -c
 driver="$(unzip -p "$TURNIP_ZIP" meta.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["libraryName"])')"
 # the package manager only unpacks lib*.so; the game asks libadrenotools for this name (src/engine/platform/android.cpp)
 unzip -p "$TURNIP_ZIP" "$driver" > "$LIBS/libvulkan_turnip.so"
+
+A7XX_ZIP="$BUILD/turnip_a7xx.zip"
+if [ ! -f "$A7XX_ZIP" ] || ! echo "$TURNIP_A7XX_SHA256  $A7XX_ZIP" | sha256sum -c --status; then
+  curl -fsSL -o "$A7XX_ZIP" "$TURNIP_A7XX_URL"
+fi
+echo "$TURNIP_A7XX_SHA256  $A7XX_ZIP" | sha256sum -c
+driver="$(unzip -p "$A7XX_ZIP" meta.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["libraryName"])')"
+unzip -p "$A7XX_ZIP" "$driver" > "$LIBS/libvulkan_turnip_a7xx.so"
 
 cp "$BUILD"/shaders/*.spv "$APP/assets/shaders/"
 cp "$ROOT"/assets/fonts/*.ttf "$ROOT"/assets/fonts/OFL-*.txt "$APP/assets/fonts/"
