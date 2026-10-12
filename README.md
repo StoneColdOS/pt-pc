@@ -79,8 +79,6 @@ main screen skips on repeat loops, with *static* marking where the voice drops o
 
 - The speech recognizer is new on Android: if it doesn't hear you, hold both triggers.
 - The PC extras that need a desktop (upscalers, ray tracing, VR, enhanced textures, loop previews) are off.
-- A phone hooked up to a TV or monitor (USB-C to HDMI, or some casting setups) counts as a second screen, so the clock
-  may show up on the TV while the game stays on the phone. Turn it off under **Display > Second screen > Off**.
 
 ## Building
 

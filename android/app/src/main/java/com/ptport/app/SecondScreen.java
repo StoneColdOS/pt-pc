@@ -180,15 +180,46 @@ final class SecondScreen {
         DisplayManager dm = (DisplayManager) activity.getSystemService(Context.DISPLAY_SERVICE);
         if (dm == null) return null;
         for (Display d : dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
-            if (d.getDisplayId() != Display.DEFAULT_DISPLAY && d.getState() != Display.STATE_OFF) return d;
+            if (d.getDisplayId() != Display.DEFAULT_DISPLAY && d.getState() != Display.STATE_OFF && builtIn(d)) return d;
         }
         for (Display d : dm.getDisplays()) {
             if (d.getDisplayId() == Display.DEFAULT_DISPLAY) continue;
             if ((d.getFlags() & Display.FLAG_PRIVATE) != 0) continue;
             if (d.getState() == Display.STATE_OFF) continue;
+            if (!builtIn(d)) continue;
             return d;
         }
         return null;
+    }
+
+    // Only a screen built into the device is the second screen (the AYN Thor's bottom one). A monitor or TV on USB-C or HDMI,
+    // a wireless display, or a phone's desktop mode on a monitor (Motorola Smart Connect, Samsung DeX) is left alone: the
+    // clock took a Motorola Edge 40 Pro's monitor and left the game on the phone. Display.getType is hidden API, read by
+    // reflection: 1 internal, 2 external (HDMI, USB-C), 3 Wi-Fi, 4 overlay, 5 virtual. Without it, the name and the
+    // presentation flag of an external display decide.
+    private static final int TYPE_INTERNAL = 1;
+
+    private static int displayType(Display d) {
+        try {
+            Object type = Display.class.getMethod("getType").invoke(d);
+            return type instanceof Integer ? (Integer) type : -1;
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    private static boolean builtIn(Display d) {
+        int type = displayType(d);
+        boolean result;
+        if (type >= 0) {
+            result = type == TYPE_INTERNAL;
+        } else {
+            String name = d.getName() == null ? "" : d.getName().toLowerCase(java.util.Locale.ROOT);
+            result = !(name.contains("hdmi") || name.contains("external") || name.contains("wireless") || name.contains("wifi")
+                    || name.contains("virtual") || name.contains("overlay") || name.contains("dex") || name.contains("cast"));
+        }
+        Log.i(TAG, "second screen: display " + d.getDisplayId() + " (" + d.getName() + ") type " + type + (result ? ", built in" : ", external: not used"));
+        return result;
     }
 
     private final class BottomScreen extends Presentation {
